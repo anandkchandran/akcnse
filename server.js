@@ -447,17 +447,18 @@ function callGemini({ prompt, systemPrompt, model = 'gemini-2.5-flash' }) {
 const IS_PROD = process.env.NODE_ENV === 'production';
 
 const ALLOWED_ORIGINS = new Set(
-  (process.env.ALLOWED_ORIGINS || 'http://localhost:4000')
+  (process.env.ALLOWED_ORIGINS || 'http://localhost:4000,http://localhost:4001')
     .split(',').map(s => s.trim()).filter(Boolean)
 );
 
 function setCors(res, reqOrigin) {
-  if (IS_PROD) {
-    res.setHeader('Access-Control-Allow-Origin',  '*');
-  } else {
-    const origin = ALLOWED_ORIGINS.has(reqOrigin) ? reqOrigin : [...ALLOWED_ORIGINS][0];
-    res.setHeader('Access-Control-Allow-Origin',  origin);
+  // If origin is explicitly whitelisted, echo it back (allows credentials if ever needed).
+  // Otherwise fall through to '*' — safe for this public read-only API.
+  if (reqOrigin && ALLOWED_ORIGINS.has(reqOrigin)) {
+    res.setHeader('Access-Control-Allow-Origin', reqOrigin);
     res.setHeader('Vary', 'Origin');
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*');
   }
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');

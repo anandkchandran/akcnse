@@ -12,5 +12,5 @@
 export const API_BASE =
   import.meta.env.VITE_API_URL ||
   (typeof location !== 'undefined' && location.hostname !== 'localhost'
-    ? 'https://akcnse-api.onrender.com'
+    ? 'https://akcnse.onrender.com'
     : 'http://localhost:4001');

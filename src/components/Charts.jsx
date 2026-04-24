@@ -14,8 +14,8 @@ const CardWrap = ({ title, legend, children }) => {
       marginBottom: 10,
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ fontSize: 10, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.8 }}>{title}</span>
-        {legend && <span style={{ fontSize: 9, color: C.muted }}>{legend}</span>}
+        <span style={{ fontSize: 10, color: C.text, textTransform: 'uppercase', letterSpacing: 0.8 }}>{title}</span>
+        {legend && <span style={{ fontSize: 9, color: C.text }}>{legend}</span>}
       </div>
       {children}
     </div>

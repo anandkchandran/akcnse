@@ -148,7 +148,7 @@ export default function SvgChart({
             return (
               <g key={i}>
                 <line x1={0} y1={y} x2={W} y2={y} stroke={COLORS.grid} strokeWidth={1} />
-                <text x={-6} y={y + 4} textAnchor="end" fontSize={9} fill={COLORS.muted}>
+                <text x={-6} y={y + 4} textAnchor="end" fontSize={10} fill={COLORS.text}>
                   {yFormatter(v)}
                 </text>
               </g>
@@ -163,7 +163,7 @@ export default function SvgChart({
               <g key={i}>
                 <line x1={0} y1={y} x2={W} y2={y} stroke={rl.color} strokeWidth={1} strokeDasharray={rl.dasharray || '4 2'} />
                 {rl.label && (
-                  <text x={W + 4} y={y + 4} fontSize={8} fill={rl.color}>{rl.label}</text>
+                  <text x={W + 4} y={y + 4} fontSize={10} fill={rl.color} fontWeight="600">{rl.label}</text>
                 )}
               </g>
             );
@@ -241,8 +241,8 @@ export default function SvgChart({
               x={xScale(i)}
               y={H + 18}
               textAnchor="middle"
-              fontSize={9}
-              fill={COLORS.muted}
+              fontSize={10}
+              fill={COLORS.text}
             >
               {data[i]?.[xKey]}
             </text>

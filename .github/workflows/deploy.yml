@@ -27,13 +27,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          # No cache: 'npm' — caching requires a lock file, which we don't
+          # commit (package-lock.json is ARM64-specific from the dev machine).
 
       - name: Install dependencies
-        # Use npm install (not npm ci) so npm resolves the correct
+        # npm install (not npm ci) so npm resolves the correct
         # platform-native Rollup binding for linux-x64 at install time.
-        # npm ci would lock to whatever platform built the package-lock.json
-        # (ARM64 in our case) and fail to find vite on the x86_64 runner.
         run: npm install
 
       - name: Build (production)

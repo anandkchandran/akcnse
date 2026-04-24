@@ -3,7 +3,7 @@ import { EQUITY_SYMBOLS, TIMEFRAMES, marketStatus } from '../constants';
 import { fmtDateTime } from '../utils/format';
 import { useTheme } from '../contexts/ThemeContext';
 
-import { API_BASE } from './api.js';
+import { API_BASE } from '../utils/api.js';
 
 // ── Market status bar ─────────────────────────────────────────────────────────
 export function RefreshBar({ lastUpdate, symbol, loading }) {

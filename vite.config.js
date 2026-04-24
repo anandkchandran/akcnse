@@ -15,9 +15,11 @@ const treatSrcJsAsJsx = {
 export default defineConfig({
   plugins: [treatSrcJsAsJsx, react()],
 
-  // GH Pages serves from /<repo-name>/ — the workflow injects this via env var.
-  // Local dev stays at '/' (env var not set).
-  base: process.env.VITE_BASE_PATH || '/',
+  // GH Pages serves the site under /akcnse/.
+  // Production builds always use that prefix; local dev overrides to '/'.
+  base: process.env.NODE_ENV === 'production'
+    ? (process.env.VITE_BASE_PATH || '/akcnse/')
+    : '/',
 
   server: {
     port: 4001,

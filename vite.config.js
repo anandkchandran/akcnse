@@ -12,12 +12,14 @@ const treatSrcJsAsJsx = {
   },
 };
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [treatSrcJsAsJsx, react()],
 
-  // GH Pages serves the site under /akcnse/.
-  // Production builds always use that prefix; local dev overrides to '/'.
-  base: process.env.NODE_ENV === 'production'
+  // `command` is 'build' for `vite build` and 'serve' for `vite` (dev server).
+  // Vite resolves config *before* setting NODE_ENV=production, so checking
+  // `command` is the only reliable way to detect a production build here.
+  // GH Pages subfolder on build; root path on local dev.
+  base: command === 'build'
     ? (process.env.VITE_BASE_PATH || '/akcnse/')
     : '/',
 
@@ -51,4 +53,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

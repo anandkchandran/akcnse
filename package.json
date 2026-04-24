@@ -1,0 +1,32 @@
+{
+  "name": "akcnse",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^6.3.5"
+  },
+  "scripts": {
+    "start":   "vite --port 4000",
+    "dev":     "vite --port 4000",
+    "build":   "vite build",
+    "preview": "vite preview",
+    "server":  "node server.js",
+
+    "build:ghpages": "VITE_BASE_PATH=/$npm_package_name/ vite build",
+    "build:render":  "echo 'No frontend build needed for Render (backend only)'"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm":  ">=10.0.0"
+  },
+  "browserslist": {
+    "production": [">0.2%", "not dead", "not op_mini all"],
+    "development": ["last 1 chrome version", "last 1 firefox version", "last 1 safari version"]
+  }
+}

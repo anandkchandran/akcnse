@@ -1,0 +1,62 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:           # allow manual re-deploy from the Actions tab
+
+# Required for the official Pages deployment action
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one deployment runs at a time; in-progress runs are NOT cancelled
+# (so a new push waits rather than clobbering a deploy already in flight)
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  # ── Build ──────────────────────────────────────────────────────────────────
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (production)
+        env:
+          # Paste your Render service URL as a GitHub repo secret:
+          #   Settings → Secrets → Actions → New repository secret
+          #   Name: VITE_API_URL   Value: https://akcnse-api.onrender.com
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+
+          # Automatically sets the Vite base path to /<repo-name>/
+          # so all asset URLs work from the GH Pages subfolder.
+          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+        run: npm run build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build            # Vite outputs to /build
+
+  # ── Deploy ─────────────────────────────────────────────────────────────────
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

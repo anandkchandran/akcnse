@@ -6,7 +6,7 @@
  * by passing NSE:SYMBOL directly (which is what TradingViewWidget.jsx does).
  */
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4001';
+import { API_BASE } from './api.js';
 
 // Map timeframe ID → Yahoo Finance interval
 const TF_TO_YF = {

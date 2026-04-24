@@ -3,7 +3,7 @@ import { EQUITY_SYMBOLS, TIMEFRAMES, marketStatus } from '../constants';
 import { fmtDateTime } from '../utils/format';
 import { useTheme } from '../contexts/ThemeContext';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4001';
+import { API_BASE } from './api.js';
 
 // ── Market status bar ─────────────────────────────────────────────────────────
 export function RefreshBar({ lastUpdate, symbol, loading }) {

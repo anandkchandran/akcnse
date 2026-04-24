@@ -4,7 +4,7 @@
  * which spawns the locally-installed claude CLI.
  */
 
-const API_BASE  = import.meta.env.VITE_API_URL || 'http://localhost:4001';
+import { API_BASE } from './api.js';
 const PROXY_URL = `${API_BASE}/api/claude`;
 const MODEL     = 'sonnet';
 

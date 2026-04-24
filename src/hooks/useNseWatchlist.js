@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { isMarketOpen } from '../constants';
 
-const API_BASE   = import.meta.env.VITE_API_URL || 'http://localhost:4001';
+import { API_BASE } from '../utils/api.js';
 const REFRESH_MS = 120_000; // 2 minutes
 
 // Default NIFTY 50 pool for gainers / losers tabs

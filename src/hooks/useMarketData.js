@@ -3,7 +3,7 @@ import { calcEMA, calcRSI, calcMACD, calcBollingerBands, buildChartData } from '
 import { computeSignal } from '../utils/signals';
 import { CANDLE_LIMIT, REFRESH_INTERVAL } from '../constants';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4001';
+import { API_BASE } from '../utils/api.js';
 
 // ── Compute all indicators from candle array ──────────────────────────────────
 function computeIndicators(candles) {

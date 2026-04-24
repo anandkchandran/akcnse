@@ -74,12 +74,13 @@ function SymbolSearch({ symbol, onSymbol, onAddToWatchlist }) {
 
   const q = query.trim().toUpperCase();
 
-  // Known symbols that match the query
+  // Known symbols that match the query — ticker, company name, or sector
   const filtered = q.length === 0
     ? EQUITY_SYMBOLS.slice(0, 12)
     : EQUITY_SYMBOLS.filter(s =>
         s.id.startsWith(q) ||
         s.label.toUpperCase().includes(q) ||
+        (s.name  || '').toUpperCase().includes(q) ||
         (s.sector || '').toUpperCase().includes(q)
       ).slice(0, 12);
 
@@ -247,12 +248,19 @@ function SymbolSearch({ symbol, onSymbol, onAddToWatchlist }) {
               onMouseLeave={e => e.currentTarget.style.background = s.id === symbol.id ? '#1e3a5f' : 'transparent'}
             >
               <div>
-                <span style={{ fontFamily: "'Raleway', sans-serif", fontSize: 12, fontWeight: 700, color: C.bright, marginRight: 6 }}>
-                  {s.label}
-                </span>
-                <span style={{ fontFamily: "'Raleway', sans-serif", fontSize: 9, color: C.muted }}>
-                  {s.sector}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontFamily: "'Raleway', sans-serif", fontSize: 12, fontWeight: 700, color: C.bright }}>
+                    {s.label}
+                  </span>
+                  <span style={{ fontFamily: "'Raleway', sans-serif", fontSize: 9, color: C.muted }}>
+                    {s.sector}
+                  </span>
+                </div>
+                {s.name && (
+                  <div style={{ fontFamily: "'Raleway', sans-serif", fontSize: 10, color: C.text, marginTop: 1 }}>
+                    {s.name}
+                  </div>
+                )}
               </div>
               <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexShrink: 0 }}>
                 {s.id === symbol.id && <span style={{ fontSize: 9, color: '#10d67a' }}>✓</span>}

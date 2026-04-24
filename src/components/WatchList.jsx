@@ -100,7 +100,10 @@ function AddEquitySearch({ onAdd, C }) {
 
   const q = query.trim().toUpperCase();
   const results = q.length < 1 ? [] : EQUITY_SYMBOLS.filter(s =>
-    s.id.startsWith(q) || s.label.toUpperCase().includes(q)
+    s.id.startsWith(q) ||
+    s.label.toUpperCase().includes(q) ||
+    (s.name   || '').toUpperCase().includes(q) ||
+    (s.sector || '').toUpperCase().includes(q)
   ).slice(0, 8);
 
   return (
@@ -167,10 +170,17 @@ function AddEquitySearch({ onAdd, C }) {
               onMouseEnter={e => { e.currentTarget.style.background = '#1a2a4060'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
             >
-              <span style={{ fontFamily: "'Raleway', sans-serif", fontSize: 11, fontWeight: 700, color: C.bright }}>
-                {s.label}
-              </span>
-              <span style={{ fontFamily: "'Raleway', sans-serif", fontSize: 9, color: C.muted }}>
+              <div>
+                <div style={{ fontFamily: "'Raleway', sans-serif", fontSize: 11, fontWeight: 700, color: C.bright }}>
+                  {s.label}
+                </div>
+                {s.name && (
+                  <div style={{ fontFamily: "'Raleway', sans-serif", fontSize: 10, color: C.text, marginTop: 1 }}>
+                    {s.name}
+                  </div>
+                )}
+              </div>
+              <span style={{ fontFamily: "'Raleway', sans-serif", fontSize: 9, color: C.muted, flexShrink: 0, marginLeft: 6 }}>
                 {s.sector}
               </span>
             </div>

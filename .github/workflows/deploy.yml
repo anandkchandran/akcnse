@@ -42,9 +42,9 @@ jobs:
           #   Name: VITE_API_URL   Value: https://akcnse-api.onrender.com
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
 
-          # Automatically sets the Vite base path to /<repo-name>/
-          # so all asset URLs work from the GH Pages subfolder.
-          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+          # Hardcoded base path so all asset URLs resolve correctly
+          # from the GH Pages subfolder /akcnse/
+          VITE_BASE_PATH: /akcnse/
         # Call vite directly so we're never dependent on npm script PATH
         # augmentation — node_modules/.bin/vite is always found.
         run: ./node_modules/.bin/vite build

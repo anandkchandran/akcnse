@@ -1,6 +1,10 @@
 # Dependencies
 node_modules/
 
+# Lock file — generated on ARM64 (dev machine); let the CI runner regenerate it
+# for its own platform so native Rollup bindings resolve correctly.
+package-lock.json
+
 # Build output
 build/
 dist/

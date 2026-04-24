@@ -30,7 +30,11 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        # Use npm install (not npm ci) so npm resolves the correct
+        # platform-native Rollup binding for linux-x64 at install time.
+        # npm ci would lock to whatever platform built the package-lock.json
+        # (ARM64 in our case) and fail to find vite on the x86_64 runner.
+        run: npm install
 
       - name: Build (production)
         env:
@@ -42,7 +46,9 @@ jobs:
           # Automatically sets the Vite base path to /<repo-name>/
           # so all asset URLs work from the GH Pages subfolder.
           VITE_BASE_PATH: /${{ github.event.repository.name }}/
-        run: npm run build
+        # Call vite directly so we're never dependent on npm script PATH
+        # augmentation — node_modules/.bin/vite is always found.
+        run: ./node_modules/.bin/vite build
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

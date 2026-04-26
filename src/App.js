@@ -215,12 +215,14 @@ function AppInner() {
                   />
                 )}
 
-                {/* Gemini — dev + prod (remove PROD guard for local testing) */}
-                <GeminiPanel
-                  symbol={symbol}  timeframe={timeframe}
-                  ticker={ticker}  inds={inds}
-                  signal={signal}  candles={candles}
-                />
+                {/* Gemini — prod only */}
+                {import.meta.env.PROD && (
+                  <GeminiPanel
+                    symbol={symbol}  timeframe={timeframe}
+                    ticker={ticker}  inds={inds}
+                    signal={signal}  candles={candles}
+                  />
+                )}
 
                 <PaperTrading ticker={ticker} symbol={symbol} />
                 <Disclaimer lastUpdate={lastUpdate} />

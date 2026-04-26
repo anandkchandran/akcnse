@@ -7,7 +7,7 @@ import { API_BASE } from '../utils/api.js';
 import { trackDataLoadTime, trackApiError } from '../utils/analytics';
 
 // ── Compute all indicators from candle array ──────────────────────────────────
-function computeIndicators(candles) {
+function computeIndicators(candles, timeframeId) {
   const prices = candles.map(c => c.close);
   return {
     e9:  calcEMA(prices, 9),
@@ -16,7 +16,7 @@ function computeIndicators(candles) {
     rsi: calcRSI(prices, 14),
     macd: calcMACD(prices),
     bb:  calcBollingerBands(prices),
-    cpr: calcCPR(candles),
+    cpr: calcCPR(candles, timeframeId),
   };
 }
 
@@ -68,7 +68,7 @@ export function useMarketData(symbol, timeframe) {
       // Trim to CANDLE_LIMIT
       const trimmed = candles.slice(-CANDLE_LIMIT);
 
-      const inds      = computeIndicators(trimmed);
+      const inds      = computeIndicators(trimmed, timeframe.id);
       const signal    = computeSignal(trimmed, inds);
       const chartData = buildChartData(trimmed, inds, 120);
 

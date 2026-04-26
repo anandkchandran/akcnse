@@ -82,14 +82,20 @@ export function calcATR(candles, period = 14) {
   return trs.slice(-n).reduce((s, v) => s + v, 0) / n;
 }
 
+// Intraday timeframe IDs (sub-daily candles)
+const INTRADAY_IDS = new Set(['5m', '15m', '30m', '45m', '1h']);
+
 /**
  * Central Pivot Range (CPR)
  * Reference period is always the **previous trading day's** H/L/C.
  *
- * For intraday timeframes (candle spacing < 1 day) we group candles by IST
- * calendar date using their Unix timestamp, find the most recent completed
- * day, and aggregate its H/L/C.  For daily/weekly candles we simply use the
- * second-to-last candle (last completed session).
+ * For intraday timeframes we group candles by IST calendar date, find the
+ * most recent completed trading day, and aggregate its full H/L/C.
+ * For daily/weekly/monthly candles we use the previous completed candle.
+ *
+ * timeframeId must be passed (e.g. '5m', '1h', '1d') for correct detection.
+ * Without it we fall back to a spacing heuristic (< 4 hours = intraday) which
+ * still fails over long weekends, so always pass the timeframe.
  *
  *  Pivot (P)       = (H + L + C) / 3
  *  Bottom CPR (BC) = (H + L) / 2
@@ -100,16 +106,23 @@ export function calcATR(candles, period = 14) {
  *    < 0.25% → tight (expect strong trend)
  *    > 1.00% → wide  (expect range / volatility)
  */
-export function calcCPR(candles) {
+export function calcCPR(candles, timeframeId = null) {
   if (!candles || candles.length < 2) return null;
 
   const last = candles[candles.length - 1];
   const prev = candles[candles.length - 2];
 
-  // Detect intraday: consecutive candle spacing < 1 calendar day (86 400 s)
-  const isIntraday =
-    last.timestamp && prev.timestamp &&
-    (last.timestamp - prev.timestamp) < 86_400;
+  // Prefer explicit timeframe ID; fall back to spacing heuristic (< 4 h).
+  // NOTE: the old < 86400 s threshold breaks over weekends — Friday last
+  // candle to Monday first candle is ~67 h which exceeds 24 h.
+  let isIntraday;
+  if (timeframeId) {
+    isIntraday = INTRADAY_IDS.has(timeframeId);
+  } else {
+    isIntraday =
+      last.timestamp && prev.timestamp &&
+      (last.timestamp - prev.timestamp) < 14_400; // < 4 h spacing → intraday
+  }
 
   let H, L, C;
 
@@ -118,35 +131,40 @@ export function calcCPR(candles) {
     const istDate = (ts) =>
       new Date(ts * 1000).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
 
-    const todayDate = istDate(last.timestamp);
+    const todayDate = last.timestamp ? istDate(last.timestamp) : null;
 
-    // All candles that belong to a prior day
-    const priorCandles = candles.filter(
-      c => c.timestamp && istDate(c.timestamp) !== todayDate
-    );
-
-    if (priorCandles.length === 0) {
-      // Not enough history yet — fall back to previous candle
+    if (!todayDate) {
+      // No timestamp available — fall back
       H = prev.high; L = prev.low; C = prev.close;
     } else {
-      // Find the most recent prior trading day
-      const prevDate = istDate(priorCandles[priorCandles.length - 1].timestamp);
-      const dayCandles = priorCandles.filter(
-        c => istDate(c.timestamp) === prevDate
+      // All candles that belong to a prior calendar day
+      const priorCandles = candles.filter(
+        c => c.timestamp && istDate(c.timestamp) !== todayDate
       );
 
-      const highs  = dayCandles.map(c => c.high).filter(v => v != null && v > 0);
-      const lows   = dayCandles.map(c => c.low ).filter(v => v != null && v > 0);
-      const closes = dayCandles.map(c => c.close).filter(v => v != null && v > 0);
+      if (priorCandles.length === 0) {
+        // Only today's candles in history — fall back to previous candle
+        H = prev.high; L = prev.low; C = prev.close;
+      } else {
+        // Find the most recent prior trading day
+        const prevDate = istDate(priorCandles[priorCandles.length - 1].timestamp);
+        const dayCandles = priorCandles.filter(
+          c => istDate(c.timestamp) === prevDate
+        );
 
-      if (!highs.length || !lows.length || !closes.length) return null;
+        const highs  = dayCandles.map(c => c.high) .filter(v => v != null && v > 0);
+        const lows   = dayCandles.map(c => c.low)  .filter(v => v != null && v > 0);
+        const closes = dayCandles.map(c => c.close).filter(v => v != null && v > 0);
 
-      H = Math.max(...highs);
-      L = Math.min(...lows);
-      C = closes[closes.length - 1];
+        if (!highs.length || !lows.length || !closes.length) return null;
+
+        H = Math.max(...highs);
+        L = Math.min(...lows);
+        C = closes[closes.length - 1]; // last close of prior day
+      }
     }
   } else {
-    // Daily / weekly: previous completed candle
+    // Daily / weekly / monthly: previous completed candle is the reference
     H = prev.high; L = prev.low; C = prev.close;
   }
 

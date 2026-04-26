@@ -105,15 +105,18 @@ const BROWSE_SECTORS = ['All', 'Banking', 'IT', 'Auto', 'Pharma', 'FMCG', 'Finan
 // ── Symbol search ─────────────────────────────────────────────────────────────
 function SymbolSearch({ symbol, onSymbol }) {
   const { colors: C, theme } = useTheme();
-  const [query,    setQuery]    = useState('');
-  const [open,     setOpen]     = useState(false);
-  const [checking, setChecking] = useState(false);
-  const [badSym,   setBadSym]   = useState(false);
-  const [sector,   setSector]   = useState('All');
-  const [focusIdx, setFocusIdx] = useState(-1);
-  const wrapRef  = useRef(null);
-  const inputRef = useRef(null);
-  const listRef  = useRef(null);
+  const [query,      setQuery]      = useState('');
+  const [open,       setOpen]       = useState(false);
+  const [checking,   setChecking]   = useState(false);
+  const [badSym,     setBadSym]     = useState(false);
+  const [sector,     setSector]     = useState('All');
+  const [focusIdx,   setFocusIdx]   = useState(-1);
+  const [webResults, setWebResults] = useState([]);
+  const [webLoading, setWebLoading] = useState(false);
+  const wrapRef    = useRef(null);
+  const inputRef   = useRef(null);
+  const listRef    = useRef(null);
+  const webTimerRef = useRef(null);
 
   // Close on outside click
   useEffect(() => {
@@ -128,6 +131,30 @@ function SymbolSearch({ symbol, onSymbol }) {
 
   // Reset focus index when results change
   useEffect(() => { setFocusIdx(-1); }, [query, sector]);
+
+  // Debounced web search — fires when local results are sparse
+  useEffect(() => {
+    clearTimeout(webTimerRef.current);
+    const q = query.trim();
+    if (!q || q.length < 2) { setWebResults([]); setWebLoading(false); return; }
+
+    setWebLoading(true);
+    webTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/nse/search?q=${encodeURIComponent(q)}`);
+        if (!res.ok) throw new Error('search failed');
+        const data = await res.json();
+        // Filter out symbols already in the local list
+        const localIds = new Set(EQUITY_SYMBOLS.map(s => s.id));
+        setWebResults(data.filter(r => !localIds.has(r.id)).slice(0, 6));
+      } catch {
+        setWebResults([]);
+      } finally {
+        setWebLoading(false);
+      }
+    }, 350);
+    return () => clearTimeout(webTimerRef.current);
+  }, [query]);
 
   const q = query.trim();
 
@@ -215,6 +242,7 @@ function SymbolSearch({ symbol, onSymbol }) {
   const borderColor = badSym ? '#f85149' : open ? '#3b82f6' : C.border;
   const noExactMatch = q && results.length === 0;
   const hasPartialResults = q && results.length > 0 && results.length < 10;
+  const showWebResults = q && webResults.length > 0;
 
   return (
     <div ref={wrapRef} style={{ position: 'relative' }}>
@@ -304,11 +332,19 @@ function SymbolSearch({ symbol, onSymbol }) {
             padding: '5px 12px 3px', flexShrink: 0,
             fontFamily: "'Raleway', sans-serif", fontSize: 9,
             color: C.muted, fontWeight: 600, letterSpacing: 0.8, textTransform: 'uppercase',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           }}>
-            {q
-              ? `${results.length} match${results.length !== 1 ? 'es' : ''} for "${q}"`
-              : sector === 'All' ? 'Popular stocks' : `${sector} stocks`
-            }
+            <span>
+              {q
+                ? `${results.length} match${results.length !== 1 ? 'es' : ''} for "${q}"`
+                : sector === 'All' ? 'Popular stocks' : `${sector} stocks`
+              }
+            </span>
+            {q && webLoading && (
+              <span style={{ fontSize: 8, color: '#3b82f6', animation: 'statusPulse 1s infinite', textTransform: 'none', letterSpacing: 0 }}>
+                searching web…
+              </span>
+            )}
           </div>
 
           {/* ── Result rows ── */}
@@ -400,7 +436,7 @@ function SymbolSearch({ symbol, onSymbol }) {
             })}
 
             {/* Partial results: also offer direct NSE lookup */}
-            {hasPartialResults && (
+            {hasPartialResults && !showWebResults && (
               <div
                 onClick={() => validateAndSelect(q)}
                 style={{
@@ -414,6 +450,64 @@ function SymbolSearch({ symbol, onSymbol }) {
               >
                 <span>⊕</span> Load "{q.toUpperCase()}" directly from NSE
               </div>
+            )}
+
+            {/* ── Web / Yahoo Finance results ── */}
+            {showWebResults && (
+              <>
+                <div style={{
+                  padding: '5px 12px 3px', flexShrink: 0,
+                  fontFamily: "'Raleway', sans-serif", fontSize: 9,
+                  color: '#3b82f6', fontWeight: 600, letterSpacing: 0.8, textTransform: 'uppercase',
+                  borderTop: `1px solid ${C.border}30`, display: 'flex', alignItems: 'center', gap: 5,
+                }}>
+                  <span>🌐</span> NSE matches from web
+                </div>
+                {webResults.map(s => {
+                  const col = '#3b82f6';
+                  return (
+                    <div
+                      key={s.id}
+                      onClick={() => {
+                        const dynSym = { ...s, yahoo: `${s.id}.NS`, tv: `NSE:${s.id}`, dynamic: true };
+                        onSymbol(dynSym); setOpen(false); setQuery(''); setBadSym(false); setFocusIdx(-1);
+                      }}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '8px 12px', cursor: 'pointer',
+                        background: 'transparent', borderBottom: `1px solid ${C.border}15`,
+                        transition: 'background 0.08s',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = isDark ? '#0d1a2a' : '#f0f4ff'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{
+                          fontFamily: "'Raleway', sans-serif", fontSize: 12,
+                          fontWeight: 700, color: C.bright,
+                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                        }}>
+                          <Highlight text={s.name || s.label} query={q} />
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
+                          <span className="mono" style={{ fontSize: 10, color: C.muted, fontWeight: 500 }}>
+                            {s.label}
+                          </span>
+                          <span style={{
+                            fontSize: 8, fontFamily: "'Raleway', sans-serif", fontWeight: 700,
+                            color: col, background: `${col}18`,
+                            border: `1px solid ${col}28`, padding: '0 5px', borderRadius: 10,
+                            letterSpacing: 0.3,
+                          }}>
+                            {s.sector}
+                          </span>
+                        </div>
+                      </div>
+                      <span style={{ fontSize: 9, color: '#3b82f680', flexShrink: 0, marginLeft: 8 }}>NSE ↗</span>
+                    </div>
+                  );
+                })}
+              </>
             )}
           </div>
 

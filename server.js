@@ -601,6 +601,38 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // GET /api/nse/search?q=query — Yahoo Finance symbol autocomplete for NSE stocks
+  if (req.method === 'GET' && req.url.startsWith('/api/nse/search')) {
+    const q = new URL(req.url, 'http://localhost').searchParams.get('q') || '';
+    if (!q.trim()) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end('[]');
+      return;
+    }
+    log('HTTP', `GET /api/nse/search?q=${q}`);
+    try {
+      const data = await yfFetch(
+        `/v1/finance/search?q=${encodeURIComponent(q + ' NSE India')}&quotesCount=10&newsCount=0&listsCount=0`
+      );
+      const quotes = (data?.quotes || [])
+        .filter(item => item.symbol?.endsWith('.NS') && item.quoteType === 'EQUITY')
+        .map(item => ({
+          id:       item.symbol.replace('.NS', ''),
+          label:    item.symbol.replace('.NS', ''),
+          name:     item.longname || item.shortname || item.symbol.replace('.NS', ''),
+          sector:   item.sector || 'NSE Equity',
+          exchange: item.exchDisp || 'NSE',
+        }));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(quotes));
+    } catch (err) {
+      log('HTTP', `→ search error: ${err.message}`);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end('[]');
+    }
+    return;
+  }
+
   // GET /health
   if (req.method === 'GET' && req.url === '/health') {
     const claudeBin = findClaude();

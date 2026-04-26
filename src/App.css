@@ -282,9 +282,28 @@ hr { margin: 10px 0; }
 .mob-tabbar { display: none; }
 
 @media (max-width: 768px) {
+  /* ── Unlock the overflow chain so native page scroll works ── */
+  html, body, #root {
+    height: auto;
+    min-height: 100%;
+    overflow: auto;
+  }
+
+  .app {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  .container {
+    overflow: visible;
+  }
+
   .main-row {
     flex-direction: column;
-    padding-bottom: 56px;
+    padding-bottom: 62px; /* clear fixed tab bar */
+    overflow: visible;
+    height: auto;
   }
 
   .col-watch, .col-chart, .col-signal {
@@ -299,9 +318,11 @@ hr { margin: 10px 0; }
 
   .col-watch.mob-active,
   .col-chart.mob-active,
-  .col-signal.mob-active { display: block; }
-
-  .col-watch.mob-active { height: calc(100vh - 130px); overflow-y: auto; }
+  .col-signal.mob-active {
+    display: block;
+    height: auto;
+    overflow-y: visible; /* page body scrolls, not the column */
+  }
 
   .mob-tabbar {
     display: flex;

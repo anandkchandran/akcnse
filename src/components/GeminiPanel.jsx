@@ -217,7 +217,7 @@ function is429(msg = '') {
 export default function GeminiPanel({ symbol, timeframe, ticker, inds, signal, candles }) {
   const market = 'spot'; // NSE equity — cash market only
   const { colors: C } = useTheme();
-  const { user, token, accessToken } = useAuth();
+  const { user, token, accessToken, requestGeminiAccess } = useAuth();
   const [result,    setResult]    = useState(null);
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState(null);
@@ -374,12 +374,47 @@ export default function GeminiPanel({ symbol, timeframe, ticker, inds, signal, c
         </div>
       </div>
 
-      {/* ── Auth gate ── */}
+      {/* ── Auth gate: not signed in ── */}
       {!collapsed && !user && (
         <GoogleSignInPrompt onSuccess={() => setCollapsed(false)} />
       )}
 
-      {!collapsed && user && (
+      {/* ── Scope gate: signed in but Gemini access not yet granted ── */}
+      {!collapsed && user && !accessToken && (
+        <div style={{
+          textAlign: 'center', padding: '18px 12px',
+          background: C.bg, borderRadius: 6,
+          border: `1px solid ${G_BLUE}30`,
+        }}>
+          <div style={{ fontSize: 22, marginBottom: 8 }}>🔑</div>
+          <div style={{
+            fontFamily: "'Raleway', sans-serif", fontSize: 12,
+            fontWeight: 700, color: C.bright, marginBottom: 6,
+          }}>
+            Gemini access required
+          </div>
+          <div style={{
+            fontFamily: "'Raleway', sans-serif", fontSize: 11,
+            color: C.muted, marginBottom: 14, lineHeight: 1.6,
+          }}>
+            One-time permission needed to use your<br />
+            Google account's Gemini quota.
+          </div>
+          <button
+            onClick={requestGeminiAccess}
+            style={{
+              fontFamily: "'Raleway', sans-serif", fontWeight: 700, fontSize: 11,
+              padding: '7px 18px', borderRadius: 5, cursor: 'pointer',
+              border: `1px solid ${G_BLUE}60`, background: `${G_BLUE}18`,
+              color: G_BLUE, transition: 'all 0.15s',
+            }}
+          >
+            Grant Gemini Access
+          </button>
+        </div>
+      )}
+
+      {!collapsed && user && accessToken && (
         <>
           {/* ── Model selector ── */}
           <select

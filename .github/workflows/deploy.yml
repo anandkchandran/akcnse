@@ -3,65 +3,49 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
-  workflow_dispatch:           # allow manual re-deploy from the Actions tab
+  workflow_dispatch:   # allow manual trigger from GitHub UI
 
-# Required for the official Pages deployment action
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Only one deployment runs at a time; in-progress runs are NOT cancelled
-# (so a new push waits rather than clobbering a deploy already in flight)
+# Only one deploy at a time; cancel any in-progress run on the same branch
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
-  # ── Build ──────────────────────────────────────────────────────────────────
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          # No cache: 'npm' — caching requires a lock file, which we don't
-          # commit (package-lock.json is ARM64-specific from the dev machine).
-
-      - name: Install dependencies
-        # npm install (not npm ci) so npm resolves the correct
-        # platform-native Rollup binding for linux-x64 at install time.
-        run: npm install
-
-      - name: Build (production)
-        env:
-          # Paste your Render service URL as a GitHub repo secret:
-          #   Settings → Secrets → Actions → New repository secret
-          #   Name: VITE_API_URL   Value: https://akcnse-api.onrender.com
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
-
-          # Hardcoded base path so all asset URLs resolve correctly
-          # from the GH Pages subfolder /akcnse/
-          VITE_BASE_PATH: /akcnse/
-        # Call vite directly so we're never dependent on npm script PATH
-        # augmentation — node_modules/.bin/vite is always found.
-        run: ./node_modules/.bin/vite build
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: build            # Vite outputs to /build
-
-  # ── Deploy ─────────────────────────────────────────────────────────────────
-  deploy:
-    needs: build
+  build-and-deploy:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      # .env.production is committed and already contains VITE_GA_MEASUREMENT_ID.
+      # VITE_API_URL points to the Render backend — set in repo Settings -> Secrets.
+      - name: Build
+        run: npm run build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

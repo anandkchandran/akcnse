@@ -211,13 +211,21 @@ function SymbolSearch({ symbol, onSymbol }) {
   }, [onSymbol]);
 
   const handleKey = (e) => {
+    // Any printable key while closed → open the dropdown
+    if (!open && e.key.length === 1) { setOpen(true); return; }
     if (!open) return;
+
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setFocusIdx(i => Math.min(i + 1, results.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setFocusIdx(i => Math.max(i - 1, -1));
+    } else if (e.key === 'Tab' && ghostSuffix) {
+      // Accept the ghost-text suggestion with Tab
+      e.preventDefault();
+      const top = results[0] || webResults[0];
+      if (top) selectResult(top);
     } else if (e.key === 'Enter') {
       if (focusIdx >= 0 && results[focusIdx]) {
         selectResult(results[focusIdx]);
@@ -246,6 +254,22 @@ function SymbolSearch({ symbol, onSymbol }) {
   const hasPartialResults = q && results.length > 0 && results.length < 10;
   const showWebResults = q && webResults.length > 0;
 
+  // ── Inline ghost-text autocomplete ───────────────────────────────────────────
+  // Shows the remaining characters of the top match in muted color after cursor.
+  // The ghost input sits absolutely behind the real input with identical styling.
+  const ghostSuffix = (() => {
+    if (!q || !open) return '';
+    const top = results[0] || webResults[0];
+    if (!top) return '';
+    const qUp = q.toUpperCase();
+    if (top.id.toUpperCase().startsWith(qUp))
+      return top.id.slice(q.length);                      // e.g. "RELI" → "ANCE"
+    const name = (top.name || '').toUpperCase();
+    if (name.startsWith(qUp))
+      return (top.name || '').slice(q.length);            // e.g. "Relia" → "nce Industries"
+    return '';
+  })();
+
   return (
     <div ref={wrapRef} style={{ position: 'relative' }}>
       {/* ── Input box ── */}
@@ -256,24 +280,49 @@ function SymbolSearch({ symbol, onSymbol }) {
         minWidth: 180, transition: 'border-color 0.15s',
       }}>
         <span style={{ color: C.muted, fontSize: 12, flexShrink: 0 }}>⌕</span>
-        <input
-          ref={inputRef}
-          value={query}
-          placeholder={open ? 'Search by name, brand, ticker…' : (symbol.name || symbol.label)}
-          onFocus={() => { setOpen(true); setBadSym(false); }}
-          onChange={e => { setQuery(e.target.value); setBadSym(false); }}
-          onKeyDown={handleKey}
-          style={{
-            background: 'transparent', border: 'none', outline: 'none',
-            fontFamily: "'Raleway', sans-serif",
-            fontSize:   open ? 12 : 11,
-            fontWeight: open ? 400 : 700,
-            color:      open ? C.text : C.bright,
-            width:      open ? 170 : 145,
-            cursor:     'text',
-            transition: 'width 0.15s',
-          }}
-        />
+
+        {/* ── Inline autocomplete wrapper ── */}
+        <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
+
+          {/* Ghost-text layer — sits behind the real input, same font/size */}
+          {ghostSuffix && (
+            <div
+              aria-hidden="true"
+              style={{
+                position:   'absolute', top: 0, left: 0,
+                fontFamily: "'Raleway', sans-serif", fontSize: 12, fontWeight: 400,
+                whiteSpace: 'pre', pointerEvents: 'none', userSelect: 'none',
+                lineHeight: 'normal',
+              }}
+            >
+              {/* Transparent mask over what the user already typed */}
+              <span style={{ color: 'transparent' }}>{query}</span>
+              {/* Muted suggestion completion */}
+              <span style={{ color: C.muted, opacity: 0.6 }}>{ghostSuffix}</span>
+            </div>
+          )}
+
+          {/* Real input */}
+          <input
+            ref={inputRef}
+            value={query}
+            placeholder={open ? 'Search by name, brand, ticker…' : (symbol.name || symbol.label)}
+            onFocus={() => { setOpen(true); setBadSym(false); }}
+            onChange={e => { setQuery(e.target.value); setBadSym(false); setOpen(true); }}
+            onKeyDown={handleKey}
+            style={{
+              background: 'transparent', border: 'none', outline: 'none',
+              fontFamily: "'Raleway', sans-serif",
+              fontSize:   open ? 12 : 11,
+              fontWeight: open ? 400 : 700,
+              color:      open ? C.text : C.bright,
+              width:      open ? 170 : 145,
+              cursor:     'text',
+              transition: 'width 0.15s',
+              position:   'relative',   // sits above ghost layer
+            }}
+          />
+        </div>
         {checking && (
           <span style={{ fontSize: 10, color: '#3b82f6', animation: 'statusPulse 1s infinite', flexShrink: 0 }}>…</span>
         )}
@@ -429,7 +478,15 @@ function SymbolSearch({ symbol, onSymbol }) {
                     </div>
                   </div>
 
-                  {/* Right: active check */}
+                  {/* Right: Tab hint on top result, checkmark on active */}
+                  {idx === 0 && ghostSuffix && !isCurrent && (
+                    <span style={{
+                      fontSize: 8, fontFamily: "'Raleway', sans-serif", fontWeight: 700,
+                      color: '#3b82f6', background: '#3b82f618',
+                      border: '1px solid #3b82f630', padding: '1px 5px',
+                      borderRadius: 4, flexShrink: 0, marginLeft: 8, letterSpacing: 0.3,
+                    }}>Tab ↹</span>
+                  )}
                   {isCurrent && (
                     <span style={{ fontSize: 12, color: '#10d67a', flexShrink: 0, marginLeft: 8 }}>✓</span>
                   )}
@@ -519,7 +576,7 @@ function SymbolSearch({ symbol, onSymbol }) {
             fontFamily: "'Raleway', sans-serif", fontSize: 9, color: C.muted,
             display: 'flex', justifyContent: 'space-between',
           }}>
-            <span>{q ? '↑↓ navigate · Enter to select' : 'Type a name, brand, or ticker'}</span>
+            <span>{q ? '↑↓ navigate · Tab to complete · Enter to select' : 'Type a name, brand, or ticker'}</span>
             <span>Esc to close</span>
           </div>
         </div>

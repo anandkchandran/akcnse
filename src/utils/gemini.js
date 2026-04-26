@@ -26,16 +26,19 @@ export async function abortGeminiAnalysis() {
 }
 
 // ── Main API call ─────────────────────────────────────────────────────────────
-export async function getGeminiAnalysis(data, model = 'gemini-2.5-flash') {
+export async function getGeminiAnalysis(data, model = 'gemini-2.5-flash', authToken = null) {
   const prompt = buildPrompt(data);
   _abortController = new AbortController();
   const { signal } = _abortController;
+
+  const headers = { 'Content-Type': 'application/json' };
+  if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
 
   let response;
   try {
     response = await fetch(PROXY_URL, {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body:    JSON.stringify({ prompt, systemPrompt: SYSTEM_PROMPT, model }),
       signal,
     });

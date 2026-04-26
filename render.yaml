@@ -17,6 +17,10 @@ services:
       - key: GEMINI_API_KEY
         sync: false            # paste your key in the Render dashboard
 
+      # Google OAuth Client ID (public value — safe to set directly)
+      - key: GOOGLE_CLIENT_ID
+        value: "992886762624-rnboroufiq8ebg0t7subemaiu3lrv9gm.apps.googleusercontent.com"
+
       # Set to your GitHub Pages origin, e.g. https://yourname.github.io
       # Render will allow CORS only from this origin in production.
       - key: ALLOWED_ORIGINS

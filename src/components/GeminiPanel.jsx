@@ -1,7 +1,9 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 import { fmtPrice } from '../utils/format';
 import { getGeminiAnalysis, abortGeminiAnalysis, GEMINI_MODELS } from '../utils/gemini';
+import { GoogleSignInPrompt, UserChip } from './GoogleSignIn';
 
 // ── Gemini brand colours ──────────────────────────────────────────────────────
 const G_BLUE   = '#4285f4';
@@ -214,6 +216,7 @@ function is429(msg = '') {
 export default function GeminiPanel({ symbol, timeframe, ticker, inds, signal, candles }) {
   const market = 'spot'; // NSE equity — cash market only
   const { colors: C } = useTheme();
+  const { user, token } = useAuth();
   const [result,    setResult]    = useState(null);
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState(null);
@@ -250,7 +253,7 @@ export default function GeminiPanel({ symbol, timeframe, ticker, inds, signal, c
     setResult(null);
     setRetryIn(null);
     try {
-      const res = await getGeminiAnalysis({ symbol: sym, timeframe: tf, ticker: tkr, inds: ids, signal: sig, candles: cnd, market: mkt }, mdl);
+      const res = await getGeminiAnalysis({ symbol: sym, timeframe: tf, ticker: tkr, inds: ids, signal: sig, candles: cnd, market: mkt }, mdl, token);
       setResult(res);
       retryCount.current = 0;
     } catch (err) {
@@ -327,19 +330,27 @@ export default function GeminiPanel({ symbol, timeframe, ticker, inds, signal, c
             )}
           </div>
         </div>
-        <button
-          onClick={() => setCollapsed(c => !c)}
-          style={{
-            background: 'transparent', border: `1px solid ${C.border}`,
-            borderRadius: 4, color: C.muted, cursor: 'pointer',
-            fontSize: 11, padding: '2px 7px', fontFamily: "'Raleway', sans-serif",
-          }}
-        >
-          {collapsed ? '+' : '−'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {user && <UserChip />}
+          <button
+            onClick={() => setCollapsed(c => !c)}
+            style={{
+              background: 'transparent', border: `1px solid ${C.border}`,
+              borderRadius: 4, color: C.muted, cursor: 'pointer',
+              fontSize: 11, padding: '2px 7px', fontFamily: "'Raleway', sans-serif",
+            }}
+          >
+            {collapsed ? '+' : '−'}
+          </button>
+        </div>
       </div>
 
-      {!collapsed && (
+      {/* ── Auth gate ── */}
+      {!collapsed && !user && (
+        <GoogleSignInPrompt onSuccess={() => setCollapsed(false)} />
+      )}
+
+      {!collapsed && user && (
         <>
           {/* ── Model selector ── */}
           <select

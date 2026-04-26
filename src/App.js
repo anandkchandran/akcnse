@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import './App.css';
 
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { AuthProvider } from './contexts/AuthContext';
 import { EQUITY_SYMBOLS, TIMEFRAMES } from './constants';
 import { useMarketData } from './hooks/useMarketData';
 
@@ -220,8 +221,10 @@ function AppInner() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AppInner />
-    </ThemeProvider>
+    <AuthProvider>
+      <ThemeProvider>
+        <AppInner />
+      </ThemeProvider>
+    </AuthProvider>
   );
 }

@@ -25,6 +25,67 @@ import os     from 'os';
 import path   from 'path';
 import crypto from 'crypto';
 
+// ── Google ID-token verification (lightweight, no extra deps) ─────────────────
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '992886762624-rnboroufiq8ebg0t7subemaiu3lrv9gm.apps.googleusercontent.com';
+let _googleCerts = null;
+let _certsExpiry = 0;
+
+async function fetchGoogleCerts() {
+  if (_googleCerts && Date.now() < _certsExpiry) return _googleCerts;
+  return new Promise((resolve, reject) => {
+    https.get('https://www.googleapis.com/oauth2/v1/certs', (r) => {
+      let raw = '';
+      r.on('data', c => { raw += c; });
+      r.on('end', () => {
+        try {
+          _googleCerts = JSON.parse(raw);
+          _certsExpiry = Date.now() + 3_600_000; // cache 1h
+          resolve(_googleCerts);
+        } catch (e) { reject(e); }
+      });
+    }).on('error', reject);
+  });
+}
+
+async function verifyGoogleToken(idToken) {
+  const parts = idToken.split('.');
+  if (parts.length !== 3) throw new Error('Malformed JWT');
+  const header  = JSON.parse(Buffer.from(parts[0], 'base64url').toString());
+  const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
+
+  if (payload.aud !== GOOGLE_CLIENT_ID)  throw new Error('Wrong audience');
+  if (payload.iss !== 'accounts.google.com' && payload.iss !== 'https://accounts.google.com')
+    throw new Error('Wrong issuer');
+  if (payload.exp < Math.floor(Date.now() / 1000)) throw new Error('Token expired');
+
+  const certs = await fetchGoogleCerts();
+  const pem   = certs[header.kid];
+  if (!pem) throw new Error('Unknown key ID');
+
+  const verify = crypto.createVerify('RS256');
+  verify.update(`${parts[0]}.${parts[1]}`);
+  if (!verify.verify(pem, parts[2], 'base64url')) throw new Error('Invalid signature');
+
+  return payload; // { sub, email, name, picture, ... }
+}
+
+async function requireGoogleAuth(req, res) {
+  const auth = req.headers['authorization'] || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  if (!token) {
+    res.writeHead(401, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Sign in with Google to use Gemini analysis.' }));
+    return null;
+  }
+  try {
+    return await verifyGoogleToken(token);
+  } catch (err) {
+    res.writeHead(401, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: `Auth failed: ${err.message}` }));
+    return null;
+  }
+}
+
 // ── Config ────────────────────────────────────────────────────────────────────
 const PORT            = process.env.PORT || 4001;
 const TIMEOUT_MS      = 120_000;
@@ -555,9 +616,12 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // POST /api/gemini
+  // POST /api/gemini  (requires valid Google ID token)
   if (req.method === 'POST' && req.url === '/api/gemini') {
     log('HTTP', 'POST /api/gemini');
+    const userPayload = await requireGoogleAuth(req, res);
+    if (!userPayload) return; // 401 already sent
+    log('AUTH', `Gemini request from ${userPayload.email}`);
     try {
       const body    = await readBody(req);
       const content = await callGemini(body);

@@ -612,7 +612,7 @@ const server = http.createServer(async (req, res) => {
     log('HTTP', `GET /api/nse/search?q=${q}`);
     try {
       const data = await yfFetch(
-        `/v1/finance/search?q=${encodeURIComponent(q + ' NSE India')}&quotesCount=10&newsCount=0&listsCount=0`
+        `/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=15&newsCount=0&listsCount=0&region=IN&lang=en-IN`
       );
       const quotes = (data?.quotes || [])
         .filter(item => item.symbol?.endsWith('.NS') && item.quoteType === 'EQUITY')

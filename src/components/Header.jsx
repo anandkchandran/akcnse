@@ -118,11 +118,12 @@ function SymbolSearch({ symbol, onSymbol }) {
   const listRef    = useRef(null);
   const webTimerRef = useRef(null);
 
-  // Close on outside click
+  // Close on outside click — preserve query so re-opening keeps the typed text
   useEffect(() => {
     const handler = (e) => {
       if (wrapRef.current && !wrapRef.current.contains(e.target)) {
-        setOpen(false); setQuery(''); setBadSym(false); setFocusIdx(-1);
+        setOpen(false); setBadSym(false); setFocusIdx(-1);
+        // do NOT clear query here — user can re-open and continue editing
       }
     };
     document.addEventListener('mousedown', handler);
@@ -226,7 +227,8 @@ function SymbolSearch({ symbol, onSymbol }) {
         validateAndSelect(q);
       }
     } else if (e.key === 'Escape') {
-      setOpen(false); setQuery(''); setBadSym(false); setFocusIdx(-1);
+      setOpen(false); setBadSym(false); setFocusIdx(-1);
+      // preserve query — user may want to reopen and continue editing
     }
   };
 
@@ -256,7 +258,7 @@ function SymbolSearch({ symbol, onSymbol }) {
         <span style={{ color: C.muted, fontSize: 12, flexShrink: 0 }}>⌕</span>
         <input
           ref={inputRef}
-          value={open ? query : ''}
+          value={query}
           placeholder={open ? 'Search by name, brand, ticker…' : (symbol.name || symbol.label)}
           onFocus={() => { setOpen(true); setBadSym(false); }}
           onChange={e => { setQuery(e.target.value); setBadSym(false); }}

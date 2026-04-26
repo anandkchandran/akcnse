@@ -66,6 +66,31 @@ export const SYMBOLS = [
   { label: 'SBILIFE',     id: 'SBILIFE',     yahoo: 'SBILIFE.NS',     tv: 'NSE:SBILIFE',     sector: 'Finance',  name: 'SBI Life Insurance',             aliases: ['sbi life', 'sbi insurance'] },
   { label: 'SBICARD',     id: 'SBICARD',     yahoo: 'SBICARD.NS',     tv: 'NSE:SBICARD',     sector: 'Finance',  name: 'SBI Cards and Payment Services', aliases: ['sbi card', 'sbi cards', 'sbi credit card'] },
   { label: 'MUTHOOTFIN',  id: 'MUTHOOTFIN',  yahoo: 'MUTHOOTFIN.NS',  tv: 'NSE:MUTHOOTFIN',  sector: 'Finance',  name: 'Muthoot Finance',                aliases: ['muthoot', 'muthoot finance', 'gold loan'] },
+  { label: 'MANAPPURAM', id: 'MANAPPURAM',  yahoo: 'MANAPPURAM.NS',  tv: 'NSE:MANAPPURAM',  sector: 'Finance',  name: 'Manappuram Finance',             aliases: ['manappuram', 'manappuram finance', 'gold loan nbfc'] },
+  { label: 'CHOLAFIN',   id: 'CHOLAFIN',    yahoo: 'CHOLAFIN.NS',    tv: 'NSE:CHOLAFIN',    sector: 'Finance',  name: 'Cholamandalam Investment',       aliases: ['chola', 'cholamandalam', 'chola finance'] },
+  { label: 'ABCAPITAL',  id: 'ABCAPITAL',   yahoo: 'ABCAPITAL.NS',   tv: 'NSE:ABCAPITAL',   sector: 'Finance',  name: 'Aditya Birla Capital',           aliases: ['aditya birla capital', 'ab capital', 'birla'] },
+  { label: 'YESBANK',    id: 'YESBANK',     yahoo: 'YESBANK.NS',     tv: 'NSE:YESBANK',     sector: 'Banking',  name: 'Yes Bank',                       aliases: ['yes bank', 'yesbank'] },
+  { label: 'RBLBANK',    id: 'RBLBANK',     yahoo: 'RBLBANK.NS',     tv: 'NSE:RBLBANK',     sector: 'Banking',  name: 'RBL Bank',                       aliases: ['rbl bank', 'rbl', 'ratnakar bank'] },
+  { label: 'BANDHANBNK', id: 'BANDHANBNK',  yahoo: 'BANDHANBNK.NS',  tv: 'NSE:BANDHANBNK',  sector: 'Banking',  name: 'Bandhan Bank',                   aliases: ['bandhan bank', 'bandhan'] },
+  { label: 'KARURVYSYA', id: 'KARURVYSYA',  yahoo: 'KARURVYSYA.NS',  tv: 'NSE:KARURVYSYA',  sector: 'Banking',  name: 'Karur Vysya Bank',               aliases: ['karur vysya', 'karur bank', 'kvb', 'karur'] },
+  { label: 'SOUTHBANK',  id: 'SOUTHBANK',   yahoo: 'SOUTHBANK.NS',   tv: 'NSE:SOUTHBANK',   sector: 'Banking',  name: 'South Indian Bank',              aliases: ['south indian bank', 'south bank', 'sib'] },
+  { label: 'DCBBANK',    id: 'DCBBANK',     yahoo: 'DCBBANK.NS',     tv: 'NSE:DCBBANK',     sector: 'Banking',  name: 'DCB Bank',                       aliases: ['dcb bank', 'dcb', 'development credit bank'] },
+
+  // ── Railways / PSU Mid-caps ───────────────────────────────────────────────
+  { label: 'IRCTC',      id: 'IRCTC',       yahoo: 'IRCTC.NS',       tv: 'NSE:IRCTC',       sector: 'Consumer', name: 'Indian Railway Catering & Tourism', aliases: ['irctc', 'indian railway', 'rail catering'] },
+  { label: 'IRFC',       id: 'IRFC',        yahoo: 'IRFC.NS',        tv: 'NSE:IRFC',        sector: 'Finance',  name: 'Indian Railway Finance Corp',      aliases: ['irfc', 'railway finance'] },
+  { label: 'RVNL',       id: 'RVNL',        yahoo: 'RVNL.NS',        tv: 'NSE:RVNL',        sector: 'Infra',    name: 'Rail Vikas Nigam',                 aliases: ['rvnl', 'rail vikas', 'rail vikas nigam'] },
+  { label: 'RECLTD',     id: 'RECLTD',      yahoo: 'RECLTD.NS',      tv: 'NSE:RECLTD',      sector: 'Finance',  name: 'REC Limited',                      aliases: ['rec', 'rec ltd', 'rural electrification'] },
+  { label: 'PFC',        id: 'PFC',         yahoo: 'PFC.NS',         tv: 'NSE:PFC',         sector: 'Finance',  name: 'Power Finance Corporation',         aliases: ['pfc', 'power finance'] },
+  { label: 'NHPC',       id: 'NHPC',        yahoo: 'NHPC.NS',        tv: 'NSE:NHPC',        sector: 'Power',    name: 'NHPC Limited',                      aliases: ['nhpc', 'hydro power'] },
+  { label: 'NMDC',       id: 'NMDC',        yahoo: 'NMDC.NS',        tv: 'NSE:NMDC',        sector: 'Mining',   name: 'NMDC Limited',                      aliases: ['nmdc', 'national mineral', 'iron ore'] },
+  { label: 'SAIL',       id: 'SAIL',        yahoo: 'SAIL.NS',        tv: 'NSE:SAIL',        sector: 'Metal',    name: 'Steel Authority of India',          aliases: ['sail', 'steel authority', 'steel authority of india'] },
+
+  // ── Consumer / Food / Retail ─────────────────────────────────────────────
+  { label: 'JUBLFOOD',   id: 'JUBLFOOD',    yahoo: 'JUBLFOOD.NS',    tv: 'NSE:JUBLFOOD',    sector: 'Consumer', name: "Jubilant FoodWorks (Domino's)",     aliases: ["dominos", "domino's", 'jubilant food', 'jublfood'] },
+  { label: 'DEVYANI',    id: 'DEVYANI',     yahoo: 'DEVYANI.NS',     tv: 'NSE:DEVYANI',     sector: 'Consumer', name: 'Devyani International (KFC/Pizza Hut)', aliases: ['devyani', 'kfc', 'pizza hut', 'costa coffee'] },
+  { label: 'NAUKRI',     id: 'NAUKRI',      yahoo: 'NAUKRI.NS',      tv: 'NSE:NAUKRI',      sector: 'IT',       name: 'Info Edge (Naukri.com)',            aliases: ['naukri', 'info edge', 'jeevansathi', '99acres'] },
+  { label: 'POLICYBZR',  id: 'POLICYBZR',   yahoo: 'POLICYBZR.NS',   tv: 'NSE:POLICYBZR',   sector: 'Finance',  name: 'PB Fintech (Policybazaar)',         aliases: ['policybazaar', 'policybzr', 'pb fintech'] },
 
   // ── IT / Tech ─────────────────────────────────────────────────────────────
   { label: 'LTIM',        id: 'LTIM',        yahoo: 'LTIM.NS',        tv: 'NSE:LTIM',        sector: 'IT',       name: 'LTIMindtree',                    aliases: ['ltimindtree', 'mindtree', 'ltim', 'l&t infotech'] },

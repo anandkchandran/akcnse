@@ -59,7 +59,7 @@ function MobileTabBar({ active, onChange, C }) {
 // ── Main app ──────────────────────────────────────────────────────────────────
 function AppInner() {
   const [symbol,    setSymbol]    = useState(EQUITY_SYMBOLS[0]);
-  const [timeframe, setTimeframe] = useState(TIMEFRAMES[2]); // 1h default
+  const [timeframe, setTimeframe] = useState(TIMEFRAMES[5]); // 1D default
   const [view,      setView]      = useState('indicators');
   const [mobTab,    setMobTab]    = useState('markets');
 
@@ -206,12 +206,19 @@ function AppInner() {
                 <SignalBreakdown signal={signal} />
                 <IndicatorValues inds={inds} candles={candles} />
 
-                {/* Gemini analysis — always shown */}
-                <GeminiPanel
-                  symbol={symbol}  timeframe={timeframe}
-                  ticker={ticker}  inds={inds}
-                  signal={signal}  candles={candles}
-                />
+                {/* AI analysis: Claude in dev, Gemini in prod */}
+                {import.meta.env.DEV
+                  ? <ClaudePanel
+                      symbol={symbol}  timeframe={timeframe}
+                      ticker={ticker}  inds={inds}
+                      signal={signal}  candles={candles}
+                    />
+                  : <GeminiPanel
+                      symbol={symbol}  timeframe={timeframe}
+                      ticker={ticker}  inds={inds}
+                      signal={signal}  candles={candles}
+                    />
+                }
 
                 <PaperTrading ticker={ticker} symbol={symbol} />
                 <Disclaimer lastUpdate={lastUpdate} />

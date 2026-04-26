@@ -194,9 +194,9 @@ function AddEquitySearch({ onAdd, C }) {
 // ── Main WatchList component ──────────────────────────────────────────────────
 export default function WatchList({ currentSymbol, onSelect, customIds = [], onAdd, onRemove }) {
   const { colors: C } = useTheme();
-  const [tab, setTab] = useState('buy'); // buy | sell | gainers | losers
+  const [tab, setTab] = useState('buy'); // buy | gainers | losers
 
-  const { gainers, losers, sellPicks, longTermPicks, customStocks, loading, error, lastRefresh, refresh, marketOpen, prevSessionDate } =
+  const { gainers, losers, longTermPicks, customStocks, loading, error, lastRefresh, refresh, marketOpen, prevSessionDate } =
     useNseWatchlist(customIds);
 
   const handleSelect = (symbolId) => {
@@ -206,15 +206,13 @@ export default function WatchList({ currentSymbol, onSelect, customIds = [], onA
 
   // ── Tab definitions ─────────────────────────────────────────────────────────
   const TABS = [
-    { id: 'buy',     label: '📈 Buy',     color: '#10d67a' },
-    { id: 'sell',    label: '📉 Sell',    color: '#f59e0b' },
-    { id: 'gainers', label: '▲ Top',     color: C.bull    },
-    { id: 'losers',  label: '▼ Bottom',  color: C.bear    },
+    { id: 'buy',     label: '📈 Top Picks', color: '#10d67a' },
+    { id: 'gainers', label: '▲ Top',        color: C.bull    },
+    { id: 'losers',  label: '▼ Bottom',     color: C.bear    },
   ];
 
   const listMap = {
     buy:     longTermPicks,
-    sell:    sellPicks,
     gainers,
     losers,
   };
@@ -297,7 +295,7 @@ export default function WatchList({ currentSymbol, onSelect, customIds = [], onA
               }}
             >
               {t.label}
-              {(t.id === 'buy' || t.id === 'sell') && listMap[t.id]?.length > 0 && (
+              {t.id === 'buy' && listMap[t.id]?.length > 0 && (
                 <span style={{ marginLeft: 4, background: `${t.color}30`, borderRadius: 3, padding: '0 4px', fontSize: 8 }}>
                   {listMap[t.id].length}
                 </span>
@@ -320,13 +318,8 @@ export default function WatchList({ currentSymbol, onSelect, customIds = [], onA
         }}>
           {tab === 'buy' && (
             marketOpen
-              ? 'Top 15 · blue-chip pool by strength · quality picks'
-              : `Blue-chip pool by strength${prevSessionDate ? ` · last session (${prevSessionDate})` : ''}`
-          )}
-          {tab === 'sell' && (
-            marketOpen
-              ? 'Top 15 · momentum × volume — swing / exit candidates'
-              : `Top 15 · momentum × volume · last session${prevSessionDate ? ` (${prevSessionDate})` : ''}`
+              ? 'Top 50 long-term blue-chip picks · ranked by session strength'
+              : `Top 50 blue-chip quality picks${prevSessionDate ? ` · last session (${prevSessionDate})` : ''}`
           )}
           {(tab === 'gainers' || tab === 'losers') && (
             marketOpen
@@ -370,7 +363,7 @@ export default function WatchList({ currentSymbol, onSelect, customIds = [], onA
       )}
 
       {/* ── Empty Picks (server not running) ── */}
-      {!loading && (tab === 'buy' || tab === 'sell') && list.length === 0 && (
+      {!loading && tab === 'buy' && list.length === 0 && (
         <div style={{
           padding:    '20px 12px',
           fontFamily: "'Raleway', sans-serif",
@@ -379,10 +372,10 @@ export default function WatchList({ currentSymbol, onSelect, customIds = [], onA
           textAlign:  'center',
           lineHeight:  1.6,
         }}>
-          <div style={{ fontSize: 22, marginBottom: 8 }}>{tab === 'buy' ? '📈' : '📉'}</div>
+          <div style={{ fontSize: 22, marginBottom: 8 }}>📈</div>
           No data yet.
           <br />
-          <span style={{ fontSize: 10 }}>Requires node server.js<br />to score live NSE data.</span>
+          <span style={{ fontSize: 10 }}>Requires node server.js<br />to load live NSE data.</span>
         </div>
       )}
 

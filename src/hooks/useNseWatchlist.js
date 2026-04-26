@@ -18,13 +18,27 @@ const NIFTY50 = [
   'INDUSINDBK', 'HDFCLIFE',   'SBILIFE',    'BANKBARODA', 'PNB',
 ];
 
-// Curated long-term blue-chip pool (quality > momentum)
+// Curated long-term blue-chip pool — 50 quality large-cap NSE stocks
+// Quality > momentum; diversified across sectors
 const LONG_TERM_POOL = [
-  'HDFCBANK',  'TCS',       'INFY',      'ICICIBANK',  'RELIANCE',
-  'WIPRO',     'ASIANPAINT','TITAN',     'KOTAKBANK',  'NESTLEIND',
-  'HCLTECH',   'SUNPHARMA', 'MARUTI',    'BHARTIARTL', 'BAJFINANCE',
-  'LT',        'AXISBANK',  'DRREDDY',   'HINDUNILVR', 'DIVISLAB',
-  'ULTRACEMCO','TATACONSUM','HDFCLIFE',  'SBILIFE',    'BAJAJFINSV',
+  // Banking & Finance
+  'HDFCBANK',  'ICICIBANK',  'KOTAKBANK',  'AXISBANK',   'SBIN',
+  'INDUSINDBK','BAJFINANCE', 'BAJAJFINSV', 'HDFCLIFE',   'SBILIFE',
+  // IT & Tech
+  'TCS',       'INFY',       'HCLTECH',    'WIPRO',      'TECHM',
+  // Consumer & FMCG
+  'HINDUNILVR','ITC',        'NESTLEIND',  'TATACONSUM', 'BRITANNIA',
+  'ASIANPAINT','TITAN',      'DMART',      'PIDILITIND', 'ZOMATO',
+  // Pharma & Healthcare
+  'SUNPHARMA', 'DRREDDY',    'DIVISLAB',   'CIPLA',      'APOLLOHOSP',
+  // Auto & Mobility
+  'MARUTI',    'BAJAJ-AUTO', 'HEROMOTOCO', 'EICHERMOT',  'M&M',
+  // Energy & Utilities
+  'RELIANCE',  'ONGC',       'BPCL',       'NTPC',       'POWERGRID',
+  // Infrastructure & Industrials
+  'LT',        'ADANIPORTS', 'ULTRACEMCO', 'BHARTIARTL', 'INDIGO',
+  // Diversified Conglomerates / Metals
+  'TATAMOTORS','TATASTEEL',  'JSWSTEEL',   'HINDALCO',   'COALINDIA',
 ];
 
 /**
@@ -95,32 +109,15 @@ export function useNseWatchlist(customSymbols = []) {
   // Losers: bottom 15 worst performers
   const losers  = [...sorted].reverse().slice(0, 15);
 
-  // Sell candidates (15): declining price × high volume — confirmed selling pressure / exit signals
-  const sellPicks = (() => {
-    const valid = niftyQuotes.filter(q => q.volume > 0 && q.price > 0);
-    if (!valid.length) return [];
-    const maxVol    = Math.max(...valid.map(q => q.volume));
-    const minChange = Math.min(...valid.map(q => q.change));
-    const maxChange = Math.max(...valid.map(q => q.change));
-    const chgRange  = maxChange - minChange || 1;
-    return [...valid]
-      .map(q => ({
-        ...q,
-        // Score highest for most negative change + high volume (confirmed downtrend)
-        _score: ((maxChange - q.change) / chgRange) * 0.6 + (q.volume / maxVol) * 0.4,
-      }))
-      .sort((a, b) => b._score - a._score)
-      .slice(0, 15);
-  })();
-
-  // Long-term picks (15): blue-chip pool sorted by today's relative strength
+  // Long-term picks (top 50): full blue-chip pool sorted by today's relative strength.
+  // Ranks the 50-stock quality pool by session % change so the currently strongest
+  // names bubble to the top — still a "buy and hold" list, just ordered by momentum.
   const longTermPicks = (() => {
     const pool = quotes.filter(q => LONG_TERM_POOL.includes(q.symbol) && q.price > 0);
     if (!pool.length) return [];
-    // Sort by change desc so strongest performers in the blue-chip basket appear first
     return [...pool]
       .sort((a, b) => b.change - a.change)
-      .slice(0, 15);
+      .slice(0, 50);
   })();
 
   // Live-priced custom stocks (same order as customSymbols)
@@ -137,7 +134,7 @@ export function useNseWatchlist(customSymbols = []) {
     : null;
 
   return {
-    gainers, losers, sellPicks, longTermPicks,
+    gainers, losers, longTermPicks,
     quotes, customStocks,
     loading, error, lastRefresh,
     marketOpen, prevSessionDate,

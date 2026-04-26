@@ -443,6 +443,19 @@ function callGemini({ prompt, systemPrompt, model = 'gemini-2.5-flash' }) {
   });
 }
 
+// ── Client info helpers (for request logging) ─────────────────────────────────
+function getClientIp(req) {
+  // x-forwarded-for is set by Render / proxies; fall back to socket address
+  const fwd = req.headers['x-forwarded-for'];
+  return (fwd ? fwd.split(',')[0].trim() : req.socket?.remoteAddress) || 'unknown';
+}
+
+function getDeviceType(ua = '') {
+  if (/mobile/i.test(ua))  return 'mobile';
+  if (/tablet/i.test(ua))  return 'tablet';
+  return 'desktop';
+}
+
 // ── HTTP server ───────────────────────────────────────────────────────────────
 const IS_PROD = process.env.NODE_ENV === 'production';
 
@@ -475,6 +488,15 @@ function readBody(req) {
 
 const server = http.createServer(async (req, res) => {
   setCors(res, req.headers['origin'] || '');
+
+  // ── Request logging — IP, device type, user-agent ──
+  if (req.method !== 'OPTIONS') {
+    const ip     = getClientIp(req);
+    const ua     = req.headers['user-agent'] || 'unknown';
+    const device = getDeviceType(ua);
+    log('REQ', `${req.method} ${req.url}  ip=${ip}  device=${device}  ua=${ua.slice(0, 80)}`);
+  }
+
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
   // POST /api/nse/chart

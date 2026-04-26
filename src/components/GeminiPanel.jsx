@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { fmtPrice } from '../utils/format';
 import { getGeminiAnalysis, abortGeminiAnalysis, GEMINI_MODELS } from '../utils/gemini';
+import { trackGeminiStart, trackGeminiDone, trackGeminiError } from '../utils/analytics';
 
 // ── Gemini brand colours ──────────────────────────────────────────────────────
 const G_BLUE   = '#4285f4';
@@ -249,19 +250,28 @@ export default function GeminiPanel({ symbol, timeframe, ticker, inds, signal, c
     setError(null);
     setResult(null);
     setRetryIn(null);
+    trackGeminiStart(sym, tf, mdl, 'server');
     try {
       const res = await getGeminiAnalysis({ symbol: sym, timeframe: tf, ticker: tkr, inds: ids, signal: sig, candles: cnd, market: mkt }, mdl);
+      trackGeminiDone(sym, mdl, res?.signal, res?.confidence);
       setResult(res);
       retryCount.current = 0;
     } catch (err) {
       if (err.message === 'ABORTED') {
+        trackGeminiError(mdl, 'aborted');
         setError('Analysis cancelled.');
       } else if (is429(err.message) && retryCount.current < 1) {
+        trackGeminiError(mdl, 'rate_limit');
         const secs = parseRetrySeconds(err.message);
         pendingData.current = { symbol: sym, timeframe: tf, ticker: tkr, inds: ids, signal: sig, candles: cnd, market: mkt, model: mdl };
         setRetryIn(secs);
         setError('rate-limit');
       } else {
+        const errType = is429(err.message) ? 'rate_limit'
+          : err.message.includes('Auth') ? 'auth'
+          : err.message.includes('network') || err.message.includes('reach') ? 'network'
+          : 'other';
+        trackGeminiError(mdl, errType);
         pendingData.current = null;
         setError(is429(err.message) ? 'Rate limit still active — please try again in a minute.' : err.message);
       }

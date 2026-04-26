@@ -196,7 +196,7 @@ export default function WatchList({ currentSymbol, onSelect, customIds = [], onA
   const { colors: C } = useTheme();
   const [tab, setTab] = useState('buy'); // buy | sell | gainers | losers
 
-  const { gainers, losers, shortTermPicks, longTermPicks, customStocks, loading, error, lastRefresh, refresh, marketOpen, prevSessionDate } =
+  const { gainers, losers, sellPicks, longTermPicks, customStocks, loading, error, lastRefresh, refresh, marketOpen, prevSessionDate } =
     useNseWatchlist(customIds);
 
   const handleSelect = (symbolId) => {
@@ -214,7 +214,7 @@ export default function WatchList({ currentSymbol, onSelect, customIds = [], onA
 
   const listMap = {
     buy:     longTermPicks,
-    sell:    shortTermPicks,
+    sell:    sellPicks,
     gainers,
     losers,
   };

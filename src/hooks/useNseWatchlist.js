@@ -95,8 +95,8 @@ export function useNseWatchlist(customSymbols = []) {
   // Losers: bottom 15 worst performers
   const losers  = [...sorted].reverse().slice(0, 15);
 
-  // Short-term picks (15): high momentum × volume — intraday / swing trading focus
-  const shortTermPicks = (() => {
+  // Sell candidates (15): declining price × high volume — confirmed selling pressure / exit signals
+  const sellPicks = (() => {
     const valid = niftyQuotes.filter(q => q.volume > 0 && q.price > 0);
     if (!valid.length) return [];
     const maxVol    = Math.max(...valid.map(q => q.volume));
@@ -106,7 +106,8 @@ export function useNseWatchlist(customSymbols = []) {
     return [...valid]
       .map(q => ({
         ...q,
-        _score: ((q.change - minChange) / chgRange) * 0.6 + (q.volume / maxVol) * 0.4,
+        // Score highest for most negative change + high volume (confirmed downtrend)
+        _score: ((maxChange - q.change) / chgRange) * 0.6 + (q.volume / maxVol) * 0.4,
       }))
       .sort((a, b) => b._score - a._score)
       .slice(0, 15);
@@ -136,7 +137,7 @@ export function useNseWatchlist(customSymbols = []) {
     : null;
 
   return {
-    gainers, losers, shortTermPicks, longTermPicks,
+    gainers, losers, sellPicks, longTermPicks,
     quotes, customStocks,
     loading, error, lastRefresh,
     marketOpen, prevSessionDate,

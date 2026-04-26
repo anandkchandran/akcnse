@@ -1,10 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import './App.css';
 
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { EQUITY_SYMBOLS, TIMEFRAMES } from './constants';
 import { useMarketData } from './hooks/useMarketData';
+import { initAnalytics, trackSymbolChange, trackTimeframeChange } from './utils/analytics';
 
 import Header                 from './components/Header';
 import TickerRow              from './components/TickerRow';
@@ -62,6 +63,26 @@ function AppInner() {
   const [timeframe, setTimeframe] = useState(TIMEFRAMES[2]); // 1h default
   const [view,      setView]      = useState('indicators');
   const [mobTab,    setMobTab]    = useState('chart');
+
+  // ── Analytics init ────────────────────────────────────────────────────────
+  useEffect(() => { initAnalytics(); }, []);
+
+  // Track symbol / timeframe changes (skip the very first render)
+  const prevSymRef = useRef(null);
+  const prevTfRef  = useRef(null);
+  useEffect(() => {
+    if (prevSymRef.current && prevSymRef.current !== symbol) {
+      trackSymbolChange(symbol, timeframe);
+    }
+    prevSymRef.current = symbol;
+  }, [symbol]);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (prevTfRef.current && prevTfRef.current !== timeframe) {
+      trackTimeframeChange(symbol, timeframe);
+    }
+    prevTfRef.current = timeframe;
+  }, [timeframe]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Custom watchlist (persisted to localStorage) ─────────────────────────
   const [watchlistIds, setWatchlistIds] = useState(loadWatchlist);

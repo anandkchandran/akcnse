@@ -4,6 +4,7 @@ import { computeSignal } from '../utils/signals';
 import { CANDLE_LIMIT, REFRESH_INTERVAL } from '../constants';
 
 import { API_BASE } from '../utils/api.js';
+import { trackDataLoadTime, trackApiError } from '../utils/analytics';
 
 // ── Compute all indicators from candle array ──────────────────────────────────
 function computeIndicators(candles) {
@@ -36,6 +37,7 @@ export function useMarketData(symbol, timeframe) {
 
   const load = useCallback(async () => {
     setState(prev => ({ ...prev, loading: true, error: null }));
+    const fetchStart = Date.now();
 
     try {
       const response = await fetch(`${API_BASE}/api/nse/chart`, {
@@ -87,6 +89,7 @@ export function useMarketData(symbol, timeframe) {
       };
 
       if (!mountedRef.current) return;
+      trackDataLoadTime(symbol, timeframe, Date.now() - fetchStart);
       setState({
         candles:    trimmed,
         chartData,
@@ -99,10 +102,12 @@ export function useMarketData(symbol, timeframe) {
       });
     } catch (err) {
       if (!mountedRef.current) return;
+      const msg = err.message || 'Failed to fetch market data';
+      trackApiError('/api/nse/chart', msg, { symbol_id: symbol.id, timeframe: timeframe.label });
       setState(prev => ({
         ...prev,
         loading: false,
-        error:   err.message || 'Failed to fetch market data',
+        error:   msg,
       }));
     }
   }, [symbol, timeframe]);

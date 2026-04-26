@@ -84,8 +84,12 @@ export function calcATR(candles, period = 14) {
 
 /**
  * Central Pivot Range (CPR)
- * Uses the previous candle's H/L/C as the reference period.
- * Returns pivot levels — constant horizontal lines valid for the current session.
+ * Reference period is always the **previous trading day's** H/L/C.
+ *
+ * For intraday timeframes (candle spacing < 1 day) we group candles by IST
+ * calendar date using their Unix timestamp, find the most recent completed
+ * day, and aggregate its H/L/C.  For daily/weekly candles we simply use the
+ * second-to-last candle (last completed session).
  *
  *  Pivot (P)       = (H + L + C) / 3
  *  Bottom CPR (BC) = (H + L) / 2
@@ -98,8 +102,56 @@ export function calcATR(candles, period = 14) {
  */
 export function calcCPR(candles) {
   if (!candles || candles.length < 2) return null;
-  const ref  = candles[candles.length - 2]; // previous completed candle
-  const { high: H, low: L, close: C } = ref;
+
+  const last = candles[candles.length - 1];
+  const prev = candles[candles.length - 2];
+
+  // Detect intraday: consecutive candle spacing < 1 calendar day (86 400 s)
+  const isIntraday =
+    last.timestamp && prev.timestamp &&
+    (last.timestamp - prev.timestamp) < 86_400;
+
+  let H, L, C;
+
+  if (isIntraday) {
+    // Group all candles by IST calendar date
+    const istDate = (ts) =>
+      new Date(ts * 1000).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
+
+    const todayDate = istDate(last.timestamp);
+
+    // All candles that belong to a prior day
+    const priorCandles = candles.filter(
+      c => c.timestamp && istDate(c.timestamp) !== todayDate
+    );
+
+    if (priorCandles.length === 0) {
+      // Not enough history yet — fall back to previous candle
+      H = prev.high; L = prev.low; C = prev.close;
+    } else {
+      // Find the most recent prior trading day
+      const prevDate = istDate(priorCandles[priorCandles.length - 1].timestamp);
+      const dayCandles = priorCandles.filter(
+        c => istDate(c.timestamp) === prevDate
+      );
+
+      const highs  = dayCandles.map(c => c.high).filter(v => v != null && v > 0);
+      const lows   = dayCandles.map(c => c.low ).filter(v => v != null && v > 0);
+      const closes = dayCandles.map(c => c.close).filter(v => v != null && v > 0);
+
+      if (!highs.length || !lows.length || !closes.length) return null;
+
+      H = Math.max(...highs);
+      L = Math.min(...lows);
+      C = closes[closes.length - 1];
+    }
+  } else {
+    // Daily / weekly: previous completed candle
+    H = prev.high; L = prev.low; C = prev.close;
+  }
+
+  if (!H || !L || !C || H <= 0 || L <= 0 || C <= 0) return null;
+
   const P   = (H + L + C) / 3;
   const BC  = (H + L)     / 2;
   const TC  = 2 * P - BC;
@@ -108,6 +160,7 @@ export function calcCPR(candles) {
   const S1  = 2 * P - H;
   const S2  = P - (H - L);
   const widthPct = Math.abs(TC - BC) / P * 100;
+
   return {
     P, BC, TC, R1, R2, S1, S2,
     widthPct,

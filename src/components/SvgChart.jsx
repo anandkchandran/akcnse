@@ -62,8 +62,20 @@ export default function SvgChart({
   const W = Math.max(width - PAD.left - PAD.right, 10);
   const H = Math.max(height - PAD.top - PAD.bottom, 10);
 
-  // Y domain
+  // Y domain — include refLine values so CPR / pivot lines are never clipped
   const allVals = data.flatMap(d => series.map(s => d[s.key])).filter(v => v != null && isFinite(v));
+  if (!yDomainProp) {
+    const baseMin = Math.min(...allVals);
+    const baseMax = Math.max(...allVals);
+    const baseRange = baseMax - baseMin || 1;
+    // Only pull in refLines within 3× the base range to avoid extreme compression
+    const refVals = refLines
+      .map(rl => rl.value)
+      .filter(v => v != null && isFinite(v) &&
+        v >= baseMin - baseRange * 3 &&
+        v <= baseMax + baseRange * 3);
+    allVals.push(...refVals);
+  }
   let yMin = yDomainProp ? yDomainProp[0] : Math.min(...allVals);
   let yMax = yDomainProp ? yDomainProp[1] : Math.max(...allVals);
   if (yMin === yMax) { yMin -= 1; yMax += 1; }

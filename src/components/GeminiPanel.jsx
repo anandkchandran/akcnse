@@ -1,9 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { useAuth } from '../contexts/AuthContext';
 import { fmtPrice } from '../utils/format';
-import { getGeminiAnalysis, abortGeminiAnalysis, getGeminiModels, GEMINI_MODELS } from '../utils/gemini';
-import { GoogleSignInPrompt, UserChip } from './GoogleSignIn';
+import { getGeminiAnalysis, abortGeminiAnalysis, GEMINI_MODELS } from '../utils/gemini';
 import { trackGeminiStart, trackGeminiDone, trackGeminiError } from '../utils/analytics';
 
 // ── Gemini brand colours ──────────────────────────────────────────────────────
@@ -217,29 +215,15 @@ function is429(msg = '') {
 export default function GeminiPanel({ symbol, timeframe, ticker, inds, signal, candles }) {
   const market = 'spot'; // NSE equity — cash market only
   const { colors: C } = useTheme();
-  const { user, token, accessToken, requestGeminiAccess } = useAuth();
   const [result,    setResult]    = useState(null);
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState(null);
   const [collapsed, setCollapsed] = useState(false);
   const [model,     setModel]     = useState('gemini-2.5-flash');
   const [retryIn,   setRetryIn]   = useState(null);
-  const [models,    setModels]    = useState(GEMINI_MODELS);   // dynamic; falls back to static
   const retryTimer  = useRef(null);
   const pendingData = useRef(null);
   const retryCount  = useRef(0);
-
-  // ── Load models available to the signed-in user ──────────────────────────
-  useEffect(() => {
-    if (!token || !accessToken) return;
-    getGeminiModels(token, accessToken).then(list => {
-      if (list?.length) {
-        setModels(list);
-        // If current model isn't in the list, default to first available
-        setModel(prev => list.some(m => m.id === prev) ? prev : list[0].id);
-      }
-    });
-  }, [token, accessToken]);
 
   useEffect(() => {
     if (retryIn === null) return;
@@ -250,7 +234,7 @@ export default function GeminiPanel({ symbol, timeframe, ticker, inds, signal, c
         setError(null);
         const d = pendingData.current;
         pendingData.current = null;
-        runAnalysis(d.symbol, d.timeframe, d.ticker, d.inds, d.signal, d.candles, d.market, d.model, d.idTok, d.accTok);
+        runAnalysis(d.symbol, d.timeframe, d.ticker, d.inds, d.signal, d.candles, d.market, d.model);
       } else {
         pendingData.current = null;
         setError('Rate limit still active — please try again in a minute.');
@@ -261,17 +245,16 @@ export default function GeminiPanel({ symbol, timeframe, ticker, inds, signal, c
     return () => clearTimeout(retryTimer.current);
   }, [retryIn]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Tokens passed explicitly to avoid stale closure (runAnalysis has [] deps)
-  const runAnalysis = useCallback(async (sym, tf, tkr, ids, sig, cnd, mkt, mdl, idTok, accTok) => {
+  const runAnalysis = useCallback(async (sym, tf, tkr, ids, sig, cnd, mkt, mdl) => {
     setLoading(true);
     setError(null);
     setResult(null);
     setRetryIn(null);
-    trackGeminiStart(sym, tf, mdl, accTok ? 'user' : 'server');
+    trackGeminiStart(sym, tf, mdl, 'server');
     try {
       const res = await getGeminiAnalysis(
         { symbol: sym, timeframe: tf, ticker: tkr, inds: ids, signal: sig, candles: cnd, market: mkt },
-        mdl, idTok, accTok,
+        mdl,
       );
       trackGeminiDone(sym, mdl, res?.signal, res?.confidence);
       setResult(res);
@@ -283,12 +266,11 @@ export default function GeminiPanel({ symbol, timeframe, ticker, inds, signal, c
       } else if (is429(err.message) && retryCount.current < 1) {
         trackGeminiError(mdl, 'rate_limit');
         const secs = parseRetrySeconds(err.message);
-        pendingData.current = { symbol: sym, timeframe: tf, ticker: tkr, inds: ids, signal: sig, candles: cnd, market: mkt, model: mdl, idTok, accTok };
+        pendingData.current = { symbol: sym, timeframe: tf, ticker: tkr, inds: ids, signal: sig, candles: cnd, market: mkt, model: mdl };
         setRetryIn(secs);
         setError('rate-limit');
       } else {
         const errType = is429(err.message) ? 'rate_limit'
-          : err.message.includes('Auth') ? 'auth'
           : err.message.includes('network') || err.message.includes('reach') ? 'network'
           : 'other';
         trackGeminiError(mdl, errType);
@@ -303,8 +285,8 @@ export default function GeminiPanel({ symbol, timeframe, ticker, inds, signal, c
   const analyze = useCallback(() => {
     if (!candles?.length || !inds) return;
     retryCount.current = 0;
-    runAnalysis(symbol, timeframe, ticker, inds, signal, candles, market, model, token, accessToken);
-  }, [symbol, timeframe, ticker, inds, signal, candles, market, model, token, accessToken, runAnalysis]);
+    runAnalysis(symbol, timeframe, ticker, inds, signal, candles, market, model);
+  }, [symbol, timeframe, ticker, inds, signal, candles, market, model, runAnalysis]);
 
   const abort = () => {
     abortGeminiAnalysis();
@@ -335,12 +317,10 @@ export default function GeminiPanel({ symbol, timeframe, ticker, inds, signal, c
               <span style={{
                 fontFamily: "'Raleway', sans-serif", fontSize: 8, fontWeight: 700,
                 textTransform: 'uppercase', letterSpacing: 0.8,
-                color: accessToken ? G_GREEN : G_BLUE,
-                background: accessToken ? `${G_GREEN}18` : `${G_BLUE}18`,
-                border: `1px solid ${accessToken ? G_GREEN : G_BLUE}40`,
-                padding: '1px 6px', borderRadius: 3,
+                color: G_BLUE, background: `${G_BLUE}18`,
+                border: `1px solid ${G_BLUE}40`, padding: '1px 6px', borderRadius: 3,
               }}>
-                {accessToken ? 'User Quota' : 'Server Key'}
+                AI
               </span>
               {collapsed && sigBadge && (
                 <span style={{
@@ -360,7 +340,6 @@ export default function GeminiPanel({ symbol, timeframe, ticker, inds, signal, c
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {user && <UserChip />}
           <button
             onClick={() => setCollapsed(c => !c)}
             style={{
@@ -374,47 +353,7 @@ export default function GeminiPanel({ symbol, timeframe, ticker, inds, signal, c
         </div>
       </div>
 
-      {/* ── Auth gate: not signed in ── */}
-      {!collapsed && !user && (
-        <GoogleSignInPrompt onSuccess={() => setCollapsed(false)} />
-      )}
-
-      {/* ── Scope gate: signed in but Gemini access not yet granted ── */}
-      {!collapsed && user && !accessToken && (
-        <div style={{
-          textAlign: 'center', padding: '18px 12px',
-          background: C.bg, borderRadius: 6,
-          border: `1px solid ${G_BLUE}30`,
-        }}>
-          <div style={{ fontSize: 22, marginBottom: 8 }}>🔑</div>
-          <div style={{
-            fontFamily: "'Raleway', sans-serif", fontSize: 12,
-            fontWeight: 700, color: C.bright, marginBottom: 6,
-          }}>
-            Gemini access required
-          </div>
-          <div style={{
-            fontFamily: "'Raleway', sans-serif", fontSize: 11,
-            color: C.muted, marginBottom: 14, lineHeight: 1.6,
-          }}>
-            One-time permission needed to use your<br />
-            Google account's Gemini quota.
-          </div>
-          <button
-            onClick={requestGeminiAccess}
-            style={{
-              fontFamily: "'Raleway', sans-serif", fontWeight: 700, fontSize: 11,
-              padding: '7px 18px', borderRadius: 5, cursor: 'pointer',
-              border: `1px solid ${G_BLUE}60`, background: `${G_BLUE}18`,
-              color: G_BLUE, transition: 'all 0.15s',
-            }}
-          >
-            Grant Gemini Access
-          </button>
-        </div>
-      )}
-
-      {!collapsed && user && accessToken && (
+      {!collapsed && (
         <>
           {/* ── Model selector ── */}
           <select

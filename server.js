@@ -25,67 +25,6 @@ import os     from 'os';
 import path   from 'path';
 import crypto from 'crypto';
 
-// ── Google ID-token verification (lightweight, no extra deps) ─────────────────
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '992886762624-rnboroufiq8ebg0t7subemaiu3lrv9gm.apps.googleusercontent.com';
-let _googleCerts = null;
-let _certsExpiry = 0;
-
-async function fetchGoogleCerts() {
-  if (_googleCerts && Date.now() < _certsExpiry) return _googleCerts;
-  return new Promise((resolve, reject) => {
-    https.get('https://www.googleapis.com/oauth2/v1/certs', (r) => {
-      let raw = '';
-      r.on('data', c => { raw += c; });
-      r.on('end', () => {
-        try {
-          _googleCerts = JSON.parse(raw);
-          _certsExpiry = Date.now() + 3_600_000; // cache 1h
-          resolve(_googleCerts);
-        } catch (e) { reject(e); }
-      });
-    }).on('error', reject);
-  });
-}
-
-async function verifyGoogleToken(idToken) {
-  const parts = idToken.split('.');
-  if (parts.length !== 3) throw new Error('Malformed JWT');
-  const header  = JSON.parse(Buffer.from(parts[0], 'base64url').toString());
-  const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
-
-  if (payload.aud !== GOOGLE_CLIENT_ID)  throw new Error('Wrong audience');
-  if (payload.iss !== 'accounts.google.com' && payload.iss !== 'https://accounts.google.com')
-    throw new Error('Wrong issuer');
-  if (payload.exp < Math.floor(Date.now() / 1000)) throw new Error('Token expired');
-
-  const certs = await fetchGoogleCerts();
-  const pem   = certs[header.kid];
-  if (!pem) throw new Error('Unknown key ID');
-
-  const verify = crypto.createVerify('RSA-SHA256');
-  verify.update(`${parts[0]}.${parts[1]}`);
-  if (!verify.verify(pem, Buffer.from(parts[2], 'base64url'))) throw new Error('Invalid signature');
-
-  return payload; // { sub, email, name, picture, ... }
-}
-
-async function requireGoogleAuth(req, res) {
-  const auth = req.headers['authorization'] || '';
-  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
-  if (!token) {
-    res.writeHead(401, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Sign in with Google to use Gemini analysis.' }));
-    return null;
-  }
-  try {
-    return await verifyGoogleToken(token);
-  } catch (err) {
-    res.writeHead(401, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: `Auth failed: ${err.message}` }));
-    return null;
-  }
-}
-
 // ── Config ────────────────────────────────────────────────────────────────────
 const PORT            = process.env.PORT || 4001;
 const TIMEOUT_MS      = 120_000;
@@ -432,51 +371,11 @@ function callClaude({ prompt, systemPrompt, model = 'sonnet' }, useProxy) {
   });
 }
 
-// ── Fetch Gemini models available to a user via their OAuth access token ──────
-function fetchUserGeminiModels(accessToken) {
-  return new Promise((resolve, reject) => {
-    const options = {
-      hostname: 'generativelanguage.googleapis.com',
-      port:     443,
-      path:     '/v1beta/models?pageSize=50',
-      method:   'GET',
-      headers:  { 'Authorization': `Bearer ${accessToken}` },
-    };
-    const req = https.request(options, (res) => {
-      let raw = '';
-      res.on('data', c => { raw += c; });
-      res.on('end', () => {
-        try {
-          const data = JSON.parse(raw);
-          if (res.statusCode !== 200) {
-            return reject(new Error(data?.error?.message || `Models API ${res.statusCode}`));
-          }
-          const models = (data.models || [])
-            .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
-            .map(m => ({
-              id:    m.name.replace('models/', ''),
-              label: m.displayName || m.name.replace('models/', ''),
-            }))
-            .sort((a, b) => a.label.localeCompare(b.label));
-          resolve(models);
-        } catch (e) { reject(e); }
-      });
-    });
-    req.on('error', reject);
-    req.end();
-  });
-}
-
 // ── Gemini API ────────────────────────────────────────────────────────────────
-// userAccessToken — if provided, calls Gemini with the user's own OAuth token
-//                   (uses user quota, no API key needed)
-//                   if absent, falls back to server GEMINI_API_KEY
-function callGemini({ prompt, systemPrompt, model = 'gemini-2.5-flash' }, userAccessToken = null) {
+function callGemini({ prompt, systemPrompt, model = 'gemini-2.5-flash' }) {
   return new Promise((resolve, reject) => {
-    const apiKey        = process.env.GEMINI_API_KEY;
-    const useUserQuota  = !!userAccessToken;
-
-    if (!useUserQuota && !apiKey) return reject(new Error('GEMINI_API_KEY is not set'));
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return reject(new Error('GEMINI_API_KEY is not set — add it to your .env or Render dashboard'));
 
     geminiAbort = false;
 
@@ -491,24 +390,15 @@ function callGemini({ prompt, systemPrompt, model = 'gemini-2.5-flash' }, userAc
       },
     });
 
-    // User quota: no ?key= param — auth via Bearer token header
-    // Server quota: API key as query param
-    const reqPath = useUserQuota
-      ? `/v1beta/models/${model}:generateContent`
-      : `/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
-    const reqHeaders = {
-      'Content-Type':   'application/json',
-      'Content-Length': Buffer.byteLength(bodyStr),
-    };
-    if (useUserQuota) reqHeaders['Authorization'] = `Bearer ${userAccessToken}`;
-
     const options = {
       hostname: 'generativelanguage.googleapis.com',
       port:     443,
-      path:     reqPath,
+      path:     `/v1beta/models/${model}:generateContent?key=${apiKey}`,
       method:   'POST',
-      headers:  reqHeaders,
+      headers: {
+        'Content-Type':   'application/json',
+        'Content-Length': Buffer.byteLength(bodyStr),
+      },
     };
 
     let settled = false;
@@ -582,7 +472,7 @@ function setCors(res, reqOrigin) {
     res.setHeader('Access-Control-Allow-Origin', '*');
   }
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Gemini-Token');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
 function readBody(req) {
@@ -685,40 +575,12 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // GET /api/gemini/models  — returns models available to the signed-in user
-  if (req.method === 'GET' && req.url === '/api/gemini/models') {
-    log('HTTP', 'GET /api/gemini/models');
-    const userPayload = await requireGoogleAuth(req, res);
-    if (!userPayload) return;
-    const accessToken = req.headers['x-gemini-token'];
-    if (!accessToken) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'X-Gemini-Token header required' }));
-      return;
-    }
-    try {
-      const models = await fetchUserGeminiModels(accessToken);
-      log('AUTH', `Models fetched for ${userPayload.email} — ${models.length} models`);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ models }));
-    } catch (err) {
-      log('HTTP', `→ 500 models  ${err.message.slice(0, 100)}`);
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: err.message }));
-    }
-    return;
-  }
-
-  // POST /api/gemini  (requires valid Google ID token; uses user quota if X-Gemini-Token present)
+  // POST /api/gemini
   if (req.method === 'POST' && req.url === '/api/gemini') {
     log('HTTP', 'POST /api/gemini');
-    const userPayload = await requireGoogleAuth(req, res);
-    if (!userPayload) return; // 401 already sent
-    const accessToken = req.headers['x-gemini-token'] || null;
-    log('AUTH', `Gemini request from ${userPayload.email} — quota: ${accessToken ? 'user' : 'server'}`);
     try {
       const body    = await readBody(req);
-      const content = await callGemini(body, accessToken);
+      const content = await callGemini(body);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ content }));
     } catch (err) {

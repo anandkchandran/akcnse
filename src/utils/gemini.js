@@ -1,27 +1,19 @@
 /**
  * Google Gemini integration for akcnse — NSE Equities Terminal
  * Routes through local proxy server (server.js on :4001)
- *
- * Auth flow:
- *   idToken     — Google ID token (JWT), sent as Authorization: Bearer <token>
- *                 Used by the server to verify the caller's identity.
- *   accessToken — OAuth2 access token with generative-language scope, sent as X-Gemini-Token.
- *                 Used by the server to call the Gemini API on behalf of the user,
- *                 consuming the user's own quota instead of the server API key.
+ * Authentication: server-side GEMINI_API_KEY only
  */
 
 import { buildPrompt } from './claude';
 import { API_BASE } from './api.js';
 
-const PROXY_URL  = `${API_BASE}/api/gemini`;
-const MODELS_URL = `${API_BASE}/api/gemini/models`;
+const PROXY_URL = `${API_BASE}/api/gemini`;
 
-// ── Fallback static model list (shown before dynamic models load) ─────────────
 export const GEMINI_MODELS = [
-  { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
-  { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
-  { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
-  { id: 'gemini-1.5-pro',   label: 'Gemini 1.5 Pro'   },
+  { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (default)' },
+  { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash'           },
+  { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash'           },
+  { id: 'gemini-1.5-pro',   label: 'Gemini 1.5 Pro'             },
 ];
 
 const SYSTEM_PROMPT = 'You are an expert NSE equity technical analyst. Respond with ONLY valid JSON — no markdown code fences, no preamble, no explanation outside the JSON object. Your signal must be one of: LONG, SHORT, or HOLD. All prices must be in INR (₹).';
@@ -34,47 +26,17 @@ export async function abortGeminiAnalysis() {
   try { await fetch(`${API_BASE}/api/gemini/abort`, { method: 'POST' }); } catch {}
 }
 
-// ── Fetch models available to the signed-in user ──────────────────────────────
-// Returns an array of { id, label } objects, or null on failure (caller uses fallback).
-export async function getGeminiModels(idToken, accessToken) {
-  if (!idToken || !accessToken) return null;
-  try {
-    const resp = await fetch(MODELS_URL, {
-      headers: {
-        'Authorization':  `Bearer ${idToken}`,
-        'X-Gemini-Token': accessToken,
-      },
-    });
-    if (!resp.ok) return null;
-    const { models } = await resp.json();
-    return Array.isArray(models) && models.length ? models : null;
-  } catch {
-    return null;
-  }
-}
-
-// ── Main analysis call ────────────────────────────────────────────────────────
-// idToken     — identifies the user (required, verified server-side)
-// accessToken — user's Gemini OAuth token (optional; if absent, server falls back to API key)
-export async function getGeminiAnalysis(
-  data,
-  model       = 'gemini-2.5-flash',
-  idToken     = null,
-  accessToken = null,
-) {
+// ── Main API call ─────────────────────────────────────────────────────────────
+export async function getGeminiAnalysis(data, model = 'gemini-2.5-flash') {
   const prompt = buildPrompt(data);
   _abortController = new AbortController();
   const { signal } = _abortController;
-
-  const headers = { 'Content-Type': 'application/json' };
-  if (idToken)     headers['Authorization']  = `Bearer ${idToken}`;
-  if (accessToken) headers['X-Gemini-Token'] = accessToken;
 
   let response;
   try {
     response = await fetch(PROXY_URL, {
       method:  'POST',
-      headers,
+      headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ prompt, systemPrompt: SYSTEM_PROMPT, model }),
       signal,
     });

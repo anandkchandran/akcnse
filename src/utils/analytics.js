@@ -28,9 +28,26 @@
 const GA_ID = import.meta.env.VITE_GA_MEASUREMENT_ID;
 let _ready = false;
 
+// In dev without a GA ID, log events to the browser console so you can
+// verify the analytics wiring without needing a real GA property.
+const DEBUG_LOG = !GA_ID && import.meta.env.DEV;
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 export function initAnalytics() {
-  if (!GA_ID || _ready || typeof window === 'undefined') return;
+  if (typeof window === 'undefined') return;
+
+  if (!GA_ID) {
+    if (DEBUG_LOG) {
+      console.info(
+        '%c[Analytics] VITE_GA_MEASUREMENT_ID not set — events will appear here in the console.\n' +
+        'Add VITE_GA_MEASUREMENT_ID=G-XXXXXXXXXX to your .env file to enable Google Analytics.',
+        'color:#fbbf24; font-weight:bold'
+      );
+    }
+    return;
+  }
+
+  if (_ready) return;
   _ready = true;
 
   // Inject the gtag.js script dynamically — no hard-coded ID in HTML
@@ -54,6 +71,9 @@ export function initAnalytics() {
 function track(event, params = {}) {
   if (typeof window?.gtag === 'function') {
     window.gtag('event', event, params);
+  }
+  if (DEBUG_LOG) {
+    console.debug(`%c[analytics] ${event}`, 'color:#60a5fa;font-weight:bold', params);
   }
 }
 

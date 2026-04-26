@@ -225,6 +225,18 @@ export default function GeminiPanel({ symbol, timeframe, ticker, inds, signal, c
   const pendingData = useRef(null);
   const retryCount  = useRef(0);
 
+  // Reset prediction whenever the user switches symbol or timeframe
+  useEffect(() => {
+    abortGeminiAnalysis();
+    clearTimeout(retryTimer.current);
+    pendingData.current = null;
+    retryCount.current  = 0;
+    setResult(null);
+    setError(null);
+    setLoading(false);
+    setRetryIn(null);
+  }, [symbol.id, timeframe.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (retryIn === null) return;
     if (retryIn <= 0) {

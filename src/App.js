@@ -206,23 +206,12 @@ function AppInner() {
                 <SignalBreakdown signal={signal} />
                 <IndicatorValues inds={inds} candles={candles} />
 
-                {/* Claude — dev only */}
-                {!import.meta.env.PROD && (
-                  <ClaudePanel
-                    symbol={symbol}  timeframe={timeframe}
-                    ticker={ticker}  inds={inds}
-                    signal={signal}  candles={candles}
-                  />
-                )}
-
-                {/* Gemini — prod only */}
-                {import.meta.env.PROD && (
-                  <GeminiPanel
-                    symbol={symbol}  timeframe={timeframe}
-                    ticker={ticker}  inds={inds}
-                    signal={signal}  candles={candles}
-                  />
-                )}
+                {/* Gemini analysis — always shown */}
+                <GeminiPanel
+                  symbol={symbol}  timeframe={timeframe}
+                  ticker={ticker}  inds={inds}
+                  signal={signal}  candles={candles}
+                />
 
                 <PaperTrading ticker={ticker} symbol={symbol} />
                 <Disclaimer lastUpdate={lastUpdate} />

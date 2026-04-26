@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { calcEMA, calcRSI, calcMACD, calcBollingerBands, buildChartData } from '../utils/indicators';
+import { calcEMA, calcRSI, calcMACD, calcBollingerBands, calcCPR, buildChartData } from '../utils/indicators';
 import { computeSignal } from '../utils/signals';
 import { CANDLE_LIMIT, REFRESH_INTERVAL } from '../constants';
 
@@ -16,6 +16,7 @@ function computeIndicators(candles) {
     rsi: calcRSI(prices, 14),
     macd: calcMACD(prices),
     bb:  calcBollingerBands(prices),
+    cpr: calcCPR(candles),
   };
 }
 

@@ -27,9 +27,9 @@ function loadWatchlist() {
 
 // ── Mobile tab bar ────────────────────────────────────────────────────────────
 const MOB_TABS = [
+  { id: 'markets', icon: '🇮🇳', label: 'Markets' },
   { id: 'chart',   icon: '📊', label: 'Chart'   },
   { id: 'signal',  icon: '📈', label: 'Signal'  },
-  { id: 'markets', icon: '🇮🇳', label: 'Markets' },
 ];
 
 function MobileTabBar({ active, onChange, C }) {
@@ -61,7 +61,7 @@ function AppInner() {
   const [symbol,    setSymbol]    = useState(EQUITY_SYMBOLS[0]);
   const [timeframe, setTimeframe] = useState(TIMEFRAMES[2]); // 1h default
   const [view,      setView]      = useState('indicators');
-  const [mobTab,    setMobTab]    = useState('chart');
+  const [mobTab,    setMobTab]    = useState('markets');
 
   // ── Analytics init ────────────────────────────────────────────────────────
   useEffect(() => { initAnalytics(); }, []);
@@ -189,7 +189,7 @@ function AppInner() {
                   ? <TradingViewWidget symbol={symbol} candles={candles} inds={inds} />
                   : (
                     <>
-                      <PriceChart data={chartData} />
+                      <PriceChart data={chartData} cpr={inds?.cpr} />
                       <RSIChart   data={chartData} />
                       <MACDChart  data={chartData} />
                     </>

@@ -27,17 +27,33 @@ const Dot = ({ color }) => (
 );
 
 // ── Price Chart ───────────────────────────────────────────────────────────────
-export function PriceChart({ data }) {
+export function PriceChart({ data, cpr }) {
   const { colors: C } = useTheme();
   if (!data.length) return null;
+
+  const cprRefLines = cpr ? [
+    { value: cpr.R1, color: '#a78bfa55', dasharray: '3 4', label: 'R1' },
+    { value: cpr.TC, color: '#10d67a',   dasharray: '5 3', label: 'TC' },
+    { value: cpr.P,  color: '#fbbf24',   dasharray: '4 2', label: 'P'  },
+    { value: cpr.BC, color: '#f85149',   dasharray: '5 3', label: 'BC' },
+    { value: cpr.S1, color: '#60a5fa55', dasharray: '3 4', label: 'S1' },
+  ] : [];
+
   return (
     <CardWrap
-      title="Price · EMA · Bollinger Bands"
+      title="Price · EMA · Bollinger Bands · CPR"
       legend={
         <span>
           <Dot color={C.ema9}  />EMA9&nbsp;&nbsp;
           <Dot color={C.ema21} />EMA21&nbsp;&nbsp;
           <Dot color={C.ema50} />EMA50
+          {cpr && (
+            <>
+              &nbsp;&nbsp;<Dot color="#fbbf24" />P&nbsp;
+              <Dot color="#10d67a" />TC&nbsp;
+              <Dot color="#f85149" />BC
+            </>
+          )}
         </span>
       }
     >
@@ -46,6 +62,7 @@ export function PriceChart({ data }) {
         height={230}
         yFormatter={fmtAxis}
         clipId="price-clip"
+        refLines={cprRefLines}
         series={[
           { key: 'bbUpper',  color: C.bb,    width: 1, dasharray: '4 3', label: 'BB Upper' },
           { key: 'bbLower',  color: C.bb,    width: 1, dasharray: '4 3', label: 'BB Lower' },

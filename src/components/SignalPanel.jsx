@@ -211,6 +211,7 @@ export function IndicatorValues({ inds, candles }) {
   const price = candles[n].close;
   const f2    = (v) => v != null && isFinite(v) ? (+v).toFixed(2) : '—';
   const fINR  = (v) => v != null && isFinite(v) ? `₹${(+v).toFixed(2)}` : '—';
+  const fPct  = (v) => v != null && isFinite(v) ? `${(+v).toFixed(2)}%` : '—';
 
   const rsiV  = inds.rsi[n];
   const rsiColor = !rsiV ? C.muted
@@ -224,6 +225,26 @@ export function IndicatorValues({ inds, candles }) {
   const e9v   = inds.e9[n];
   const e21v  = inds.e21[n];
   const e50v  = inds.e50[n];
+
+  // ── CPR analysis ──────────────────────────────────────────────────────────
+  const cpr = inds.cpr;
+  const cprZone = cpr
+    ? price > cpr.TC ? 'ABOVE CPR'
+    : price < cpr.BC ? 'BELOW CPR'
+    : 'INSIDE CPR'
+    : null;
+  const cprZoneColor = !cprZone ? C.muted
+    : cprZone === 'ABOVE CPR' ? C.bull
+    : cprZone === 'BELOW CPR' ? C.bear
+    : C.neutral;
+  const cprBias = !cprZone ? '—'
+    : cprZone === 'ABOVE CPR' ? 'Bullish bias'
+    : cprZone === 'BELOW CPR' ? 'Bearish bias'
+    : 'Indecision / ranging';
+  const cprWidthLabel = !cpr ? '—'
+    : cpr.tight ? `${fPct(cpr.widthPct)} · Tight (trend expected)`
+    : cpr.wide  ? `${fPct(cpr.widthPct)} · Wide (range / volatile)`
+    :              `${fPct(cpr.widthPct)} · Normal`;
 
   const indicators = [
     { label: 'Price',       value: fINR(price),        color: '#60a5fa' },
@@ -265,6 +286,65 @@ export function IndicatorValues({ inds, candles }) {
           ))}
         </div>
       </Section>
+
+      {/* ── CPR / Pivot section ── */}
+      {cpr && (
+        <Section title="CPR · Central Pivot Range">
+          {/* Zone badge + width */}
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '7px 10px', borderRadius: 6, marginBottom: 8,
+            background: `${cprZoneColor}12`,
+            border: `1px solid ${cprZoneColor}35`,
+          }}>
+            <div>
+              <div style={{
+                fontFamily: "'Raleway', sans-serif", fontSize: 11,
+                fontWeight: 700, color: cprZoneColor,
+              }}>
+                {cprZone}
+              </div>
+              <div style={{ fontFamily: "'Raleway', sans-serif", fontSize: 9, color: C.muted, marginTop: 2 }}>
+                {cprBias}
+              </div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontFamily: "'Raleway', sans-serif", fontSize: 8, color: C.muted, marginBottom: 2 }}>
+                CPR Width
+              </div>
+              <div style={{ fontFamily: "'Raleway', sans-serif", fontSize: 9, color: C.text }}>
+                {cprWidthLabel}
+              </div>
+            </div>
+          </div>
+
+          {/* Pivot levels */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+            {[
+              { label: 'Pivot (P)',       value: fINR(cpr.P),  color: '#fbbf24' },
+              { label: 'Top CPR (TC)',    value: fINR(cpr.TC), color: '#10d67a' },
+              { label: 'Bottom CPR (BC)', value: fINR(cpr.BC), color: '#f85149' },
+              { label: 'R1 (Resistance)', value: fINR(cpr.R1), color: '#a78bfa' },
+              { label: 'S1 (Support)',    value: fINR(cpr.S1), color: '#60a5fa' },
+              { label: 'R2 (Resistance)', value: fINR(cpr.R2), color: '#c4b5fd' },
+              { label: 'S2 (Support)',    value: fINR(cpr.S2), color: '#93c5fd' },
+            ].map(({ label, value, color }) => (
+              <div key={label} style={{
+                display:        'flex',
+                justifyContent: 'space-between',
+                alignItems:     'center',
+                padding:        '4px 7px',
+                background:     C.bg,
+                borderRadius:   4,
+                border:        `1px solid ${color}20`,
+              }}>
+                <span style={{ fontFamily: "'Raleway', sans-serif", fontSize: 9, color: C.muted }}>{label}</span>
+                <span className="mono" style={{ fontSize: 10, fontWeight: 600, color }}>{value}</span>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
     </div>
   );
 }

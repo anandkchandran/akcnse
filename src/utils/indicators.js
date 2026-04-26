@@ -83,6 +83,40 @@ export function calcATR(candles, period = 14) {
 }
 
 /**
+ * Central Pivot Range (CPR)
+ * Uses the previous candle's H/L/C as the reference period.
+ * Returns pivot levels — constant horizontal lines valid for the current session.
+ *
+ *  Pivot (P)       = (H + L + C) / 3
+ *  Bottom CPR (BC) = (H + L) / 2
+ *  Top CPR (TC)    = (2 × P) − BC
+ *  R1 = 2P − L  |  R2 = P + (H − L)
+ *  S1 = 2P − H  |  S2 = P − (H − L)
+ *  widthPct = |TC − BC| / P × 100
+ *    < 0.25% → tight (expect strong trend)
+ *    > 1.00% → wide  (expect range / volatility)
+ */
+export function calcCPR(candles) {
+  if (!candles || candles.length < 2) return null;
+  const ref  = candles[candles.length - 2]; // previous completed candle
+  const { high: H, low: L, close: C } = ref;
+  const P   = (H + L + C) / 3;
+  const BC  = (H + L)     / 2;
+  const TC  = 2 * P - BC;
+  const R1  = 2 * P - L;
+  const R2  = P + (H - L);
+  const S1  = 2 * P - H;
+  const S2  = P - (H - L);
+  const widthPct = Math.abs(TC - BC) / P * 100;
+  return {
+    P, BC, TC, R1, R2, S1, S2,
+    widthPct,
+    tight: widthPct < 0.25,   // trending day expected
+    wide:  widthPct > 1.00,   // ranging / volatile day expected
+  };
+}
+
+/**
  * Build chart-ready data array from candles + computed indicators
  * Returns last `limit` items for rendering performance
  */

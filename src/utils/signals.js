@@ -74,6 +74,27 @@ export function computeSignal(candles, inds) {
     else              add('EMA 50', 'Price below EMA50 — primary downtrend active', 'mild_bear',-12);
   }
 
+  // ── CPR (Central Pivot Range) ─────────────────────────────────────────────
+  const cpr = inds?.cpr;
+  if (cpr) {
+    const { P, BC, TC, R1, S1, widthPct } = cpr;
+
+    // Price position relative to CPR levels
+    if      (price > R1)  add('CPR', `Price above R1 ₹${R1.toFixed(2)} — strong bullish breakout`,                    'strong_bull',  20);
+    else if (price > TC)  add('CPR', `Price above Top CPR ₹${TC.toFixed(2)} — bullish, pivot range as support`,        'bull',         12);
+    else if (price >= BC) add('CPR', `Price inside CPR (BC ₹${BC.toFixed(2)} – TC ₹${TC.toFixed(2)}) — ranging, await breakout`, 'neutral', 0);
+    else if (price > S1)  add('CPR', `Price below Bottom CPR ₹${BC.toFixed(2)} — bearish, pivot range as resistance`,  'bear',        -12);
+    else                  add('CPR', `Price below S1 ₹${S1.toFixed(2)} — strong bearish breakdown`,                    'strong_bear', -20);
+
+    // CPR width: tight = trending day expected, wide = rangebound
+    if (cpr.tight) add('CPR Width', `Tight CPR (${widthPct.toFixed(2)}%) — trending day expected, follow breakout direction`, 'neutral',  5);
+    if (cpr.wide)  add('CPR Width', `Wide CPR (${widthPct.toFixed(2)}%) — rangebound session likely, fade extremes`,           'neutral', -3);
+
+    // Pivot as dynamic bias reference (skip when tight CPR, already handled above)
+    if (!cpr.tight && price > P) add('CPR Pivot', `Price above Pivot ₹${P.toFixed(2)} — intraday positive bias`, 'mild_bull',  4);
+    if (!cpr.tight && price < P) add('CPR Pivot', `Price below Pivot ₹${P.toFixed(2)} — intraday negative bias`, 'mild_bear', -4);
+  }
+
   // ── Score → Action ────────────────────────────────────────────────────────
   const action     = score >= 30 ? 'BUY' : score <= -30 ? 'SELL' : 'HOLD';
   const confidence = Math.min(Math.round(Math.abs(score) / 1.8), 98);

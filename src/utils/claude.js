@@ -72,6 +72,39 @@ export function buildPrompt({ symbol, timeframe, ticker, inds, signal, candles }
     : bbPos > 75        ? `Upper quarter (${bbPos}%) — near resistance`
     : `Mid-band (${bbPos}% of range)`;
 
+  // ── CPR (Central Pivot Range) ───────────────────────────────────────────────
+  const cpr = inds.cpr;
+  const cprSection = cpr ? (() => {
+    const fp2 = v => v != null ? `₹${(+v).toFixed(2)}` : '—';
+    const pos  = price > cpr.R1  ? `ABOVE R1 — strong bullish breakout zone`
+               : price > cpr.TC  ? `Above Top CPR (TC) — bullish; pivot range is now support`
+               : price >= cpr.BC ? `Inside CPR (between BC and TC) — consolidation / indecision`
+               : price > cpr.S1  ? `Below Bottom CPR (BC) — bearish; pivot range is resistance`
+               :                   `BELOW S1 — strong bearish breakdown zone`;
+    return `
+═══════════════════════════════════════════════════════════
+CPR — CENTRAL PIVOT RANGE (based on previous session H/L/C)
+═══════════════════════════════════════════════════════════
+Pivot (P)      : ${fp2(cpr.P)}
+Top CPR (TC)   : ${fp2(cpr.TC)}
+Bottom CPR (BC): ${fp2(cpr.BC)}
+R1             : ${fp2(cpr.R1)}
+R2             : ${fp2(cpr.R2)}
+S1             : ${fp2(cpr.S1)}
+S2             : ${fp2(cpr.S2)}
+CPR Width      : ${cpr.widthPct.toFixed(3)}% — ${cpr.tight ? 'TIGHT (trending day expected — ride the breakout)' : cpr.wide ? 'WIDE (rangebound day — fade moves at extremes)' : 'Normal'}
+Price Position : ${pos}
+
+CPR trading rules:
+  • Above TC + holding → bullish; TC/P = support levels to watch
+  • Below BC + holding → bearish; BC/P = resistance levels to watch
+  • Inside CPR → wait for decisive breakout before entering
+  • Tight CPR → strong directional move likely once breakout occurs
+  • R1/R2 = potential resistance targets for longs
+  • S1/S2 = potential support targets for shorts`;
+  })() : '\nCPR data not available for this chart.';
+
+
   // ── Indicator series (last 6 readings) ─────────────────────────────────────
   const rsiSeries  = series(inds.rsi, n, 6, 1);
   const histSeries = series(inds.macd.histogram, n, 6, 3);
@@ -137,6 +170,8 @@ MACD Hist series  : ${histSeries}
 EMA9 series       : ${e9Series}
 Close series      : ${closeSeries}
 
+${cprSection}
+
 ═══════════════════════════════════════════════════════════
 ALGORITHM PRE-SIGNAL (weighted indicator scoring)
 ═══════════════════════════════════════════════════════════
@@ -167,6 +202,9 @@ Key instructions:
 - All prices must be in INR (₹)
 - Use the INDICATOR TRENDS series to assess momentum
 - Identify key support/resistance from the price action table
+- Use CPR levels as primary S/R reference: TC/BC/P/R1/R2/S1/S2
+- Note whether price is above TC (bullish), inside CPR (neutral), or below BC (bearish)
+- Tight CPR = strong trending day expected; factor that into conviction and sizing
 - Consider volume confirmation (high volume breakouts are more reliable)
 - NSE market hours: 9:15 AM - 3:30 PM IST (Mon-Fri)
 - Scale time horizon to ${timeframe.label}: 5m/15m/30m/45m=intraday, 1h=swing 1-3d, 1D=positional 1-4wks, 1W/1M=long-term investment

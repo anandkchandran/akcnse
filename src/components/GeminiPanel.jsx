@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { fmtPrice } from '../utils/format';
-import { getGeminiAnalysis, abortGeminiAnalysis, GEMINI_MODELS } from '../utils/gemini';
+import { getGeminiAnalysis, abortGeminiAnalysis, getGeminiModels, GEMINI_MODELS } from '../utils/gemini';
 import { GoogleSignInPrompt, UserChip } from './GoogleSignIn';
 
 // ── Gemini brand colours ──────────────────────────────────────────────────────
@@ -216,16 +216,29 @@ function is429(msg = '') {
 export default function GeminiPanel({ symbol, timeframe, ticker, inds, signal, candles }) {
   const market = 'spot'; // NSE equity — cash market only
   const { colors: C } = useTheme();
-  const { user, token } = useAuth();
+  const { user, token, accessToken } = useAuth();
   const [result,    setResult]    = useState(null);
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState(null);
   const [collapsed, setCollapsed] = useState(false);
   const [model,     setModel]     = useState('gemini-2.5-flash');
   const [retryIn,   setRetryIn]   = useState(null);
+  const [models,    setModels]    = useState(GEMINI_MODELS);   // dynamic; falls back to static
   const retryTimer  = useRef(null);
   const pendingData = useRef(null);
   const retryCount  = useRef(0);
+
+  // ── Load models available to the signed-in user ──────────────────────────
+  useEffect(() => {
+    if (!token || !accessToken) return;
+    getGeminiModels(token, accessToken).then(list => {
+      if (list?.length) {
+        setModels(list);
+        // If current model isn't in the list, default to first available
+        setModel(prev => list.some(m => m.id === prev) ? prev : list[0].id);
+      }
+    });
+  }, [token, accessToken]);
 
   useEffect(() => {
     if (retryIn === null) return;
@@ -236,7 +249,7 @@ export default function GeminiPanel({ symbol, timeframe, ticker, inds, signal, c
         setError(null);
         const d = pendingData.current;
         pendingData.current = null;
-        runAnalysis(d.symbol, d.timeframe, d.ticker, d.inds, d.signal, d.candles, d.market, d.model);
+        runAnalysis(d.symbol, d.timeframe, d.ticker, d.inds, d.signal, d.candles, d.market, d.model, d.idTok, d.accTok);
       } else {
         pendingData.current = null;
         setError('Rate limit still active — please try again in a minute.');
@@ -247,13 +260,17 @@ export default function GeminiPanel({ symbol, timeframe, ticker, inds, signal, c
     return () => clearTimeout(retryTimer.current);
   }, [retryIn]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const runAnalysis = useCallback(async (sym, tf, tkr, ids, sig, cnd, mkt, mdl) => {
+  // Tokens passed explicitly to avoid stale closure (runAnalysis has [] deps)
+  const runAnalysis = useCallback(async (sym, tf, tkr, ids, sig, cnd, mkt, mdl, idTok, accTok) => {
     setLoading(true);
     setError(null);
     setResult(null);
     setRetryIn(null);
     try {
-      const res = await getGeminiAnalysis({ symbol: sym, timeframe: tf, ticker: tkr, inds: ids, signal: sig, candles: cnd, market: mkt }, mdl, token);
+      const res = await getGeminiAnalysis(
+        { symbol: sym, timeframe: tf, ticker: tkr, inds: ids, signal: sig, candles: cnd, market: mkt },
+        mdl, idTok, accTok,
+      );
       setResult(res);
       retryCount.current = 0;
     } catch (err) {
@@ -261,7 +278,7 @@ export default function GeminiPanel({ symbol, timeframe, ticker, inds, signal, c
         setError('Analysis cancelled.');
       } else if (is429(err.message) && retryCount.current < 1) {
         const secs = parseRetrySeconds(err.message);
-        pendingData.current = { symbol: sym, timeframe: tf, ticker: tkr, inds: ids, signal: sig, candles: cnd, market: mkt, model: mdl };
+        pendingData.current = { symbol: sym, timeframe: tf, ticker: tkr, inds: ids, signal: sig, candles: cnd, market: mkt, model: mdl, idTok, accTok };
         setRetryIn(secs);
         setError('rate-limit');
       } else {
@@ -276,8 +293,8 @@ export default function GeminiPanel({ symbol, timeframe, ticker, inds, signal, c
   const analyze = useCallback(() => {
     if (!candles?.length || !inds) return;
     retryCount.current = 0;
-    runAnalysis(symbol, timeframe, ticker, inds, signal, candles, market, model);
-  }, [symbol, timeframe, ticker, inds, signal, candles, market, model, runAnalysis]);
+    runAnalysis(symbol, timeframe, ticker, inds, signal, candles, market, model, token, accessToken);
+  }, [symbol, timeframe, ticker, inds, signal, candles, market, model, token, accessToken, runAnalysis]);
 
   const abort = () => {
     abortGeminiAnalysis();
@@ -308,10 +325,12 @@ export default function GeminiPanel({ symbol, timeframe, ticker, inds, signal, c
               <span style={{
                 fontFamily: "'Raleway', sans-serif", fontSize: 8, fontWeight: 700,
                 textTransform: 'uppercase', letterSpacing: 0.8,
-                color: G_BLUE, background: `${G_BLUE}18`,
-                border: `1px solid ${G_BLUE}40`, padding: '1px 6px', borderRadius: 3,
+                color: accessToken ? G_GREEN : G_BLUE,
+                background: accessToken ? `${G_GREEN}18` : `${G_BLUE}18`,
+                border: `1px solid ${accessToken ? G_GREEN : G_BLUE}40`,
+                padding: '1px 6px', borderRadius: 3,
               }}>
-                Free
+                {accessToken ? 'User Quota' : 'Server Key'}
               </span>
               {collapsed && sigBadge && (
                 <span style={{
@@ -364,7 +383,7 @@ export default function GeminiPanel({ symbol, timeframe, ticker, inds, signal, c
               color: C.text, cursor: 'pointer', boxSizing: 'border-box',
             }}
           >
-            {GEMINI_MODELS.map(m => (
+            {models.map(m => (
               <option key={m.id} value={m.id}>{m.label}</option>
             ))}
           </select>

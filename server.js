@@ -62,9 +62,9 @@ async function verifyGoogleToken(idToken) {
   const pem   = certs[header.kid];
   if (!pem) throw new Error('Unknown key ID');
 
-  const verify = crypto.createVerify('RS256');
+  const verify = crypto.createVerify('RSA-SHA256');
   verify.update(`${parts[0]}.${parts[1]}`);
-  if (!verify.verify(pem, parts[2], 'base64url')) throw new Error('Invalid signature');
+  if (!verify.verify(pem, Buffer.from(parts[2], 'base64url'))) throw new Error('Invalid signature');
 
   return payload; // { sub, email, name, picture, ... }
 }

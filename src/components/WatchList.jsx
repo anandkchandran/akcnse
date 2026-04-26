@@ -194,9 +194,9 @@ function AddEquitySearch({ onAdd, C }) {
 // ── Main WatchList component ──────────────────────────────────────────────────
 export default function WatchList({ currentSymbol, onSelect, customIds = [], onAdd, onRemove }) {
   const { colors: C } = useTheme();
-  const [tab, setTab] = useState('picks'); // picks | gainers | losers
+  const [tab, setTab] = useState('short'); // short | long | gainers | losers
 
-  const { gainers, losers, recommended, customStocks, loading, error, lastRefresh, refresh, marketOpen, prevSessionDate } =
+  const { gainers, losers, shortTermPicks, longTermPicks, customStocks, loading, error, lastRefresh, refresh, marketOpen, prevSessionDate } =
     useNseWatchlist(customIds);
 
   const handleSelect = (symbolId) => {
@@ -206,13 +206,15 @@ export default function WatchList({ currentSymbol, onSelect, customIds = [], onA
 
   // ── Tab definitions ─────────────────────────────────────────────────────────
   const TABS = [
-    { id: 'picks',   label: '★ Picks',   color: '#f59e0b' },
-    { id: 'gainers', label: '▲ Gainers', color: C.bull    },
-    { id: 'losers',  label: '▼ Losers',  color: C.bear    },
+    { id: 'short',   label: '⚡ Short',   color: '#f59e0b' },
+    { id: 'long',    label: '🏦 Long',    color: '#10d67a' },
+    { id: 'gainers', label: '▲ Top',     color: C.bull    },
+    { id: 'losers',  label: '▼ Bottom',  color: C.bear    },
   ];
 
   const listMap = {
-    picks: recommended,
+    short:   shortTermPicks,
+    long:    longTermPicks,
     gainers,
     losers,
   };
@@ -295,9 +297,9 @@ export default function WatchList({ currentSymbol, onSelect, customIds = [], onA
               }}
             >
               {t.label}
-              {t.id === 'picks' && recommended.length > 0 && (
+              {(t.id === 'short' || t.id === 'long') && listMap[t.id]?.length > 0 && (
                 <span style={{ marginLeft: 4, background: `${t.color}30`, borderRadius: 3, padding: '0 4px', fontSize: 8 }}>
-                  {recommended.length}
+                  {listMap[t.id].length}
                 </span>
               )}
             </button>
@@ -316,10 +318,15 @@ export default function WatchList({ currentSymbol, onSelect, customIds = [], onA
           flexShrink:  0,
           letterSpacing: 0.3,
         }}>
-          {tab === 'picks' && (
+          {tab === 'short' && (
             marketOpen
-              ? 'Top 10 by momentum × volume · 1H change'
-              : `Top 10 by momentum × volume · last session${prevSessionDate ? ` (${prevSessionDate})` : ''}`
+              ? 'Top 15 · momentum × volume — intraday / swing'
+              : `Top 15 · momentum × volume · last session${prevSessionDate ? ` (${prevSessionDate})` : ''}`
+          )}
+          {tab === 'long' && (
+            marketOpen
+              ? 'Top 15 · blue-chip pool by strength · long-term'
+              : `Blue-chip pool by strength${prevSessionDate ? ` · last session (${prevSessionDate})` : ''}`
           )}
           {(tab === 'gainers' || tab === 'losers') && (
             marketOpen
@@ -363,7 +370,7 @@ export default function WatchList({ currentSymbol, onSelect, customIds = [], onA
       )}
 
       {/* ── Empty Picks (server not running) ── */}
-      {!loading && tab === 'picks' && list.length === 0 && (
+      {!loading && (tab === 'short' || tab === 'long') && list.length === 0 && (
         <div style={{
           padding:    '20px 12px',
           fontFamily: "'Raleway', sans-serif",
@@ -372,7 +379,7 @@ export default function WatchList({ currentSymbol, onSelect, customIds = [], onA
           textAlign:  'center',
           lineHeight:  1.6,
         }}>
-          <div style={{ fontSize: 22, marginBottom: 8 }}>★</div>
+          <div style={{ fontSize: 22, marginBottom: 8 }}>{tab === 'long' ? '🏦' : '⚡'}</div>
           No data yet.
           <br />
           <span style={{ fontSize: 10 }}>Requires node server.js<br />to score live NSE data.</span>

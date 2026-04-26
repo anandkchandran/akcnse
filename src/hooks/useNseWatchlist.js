@@ -4,13 +4,27 @@ import { isMarketOpen } from '../constants';
 import { API_BASE } from '../utils/api.js';
 const REFRESH_MS = 120_000; // 2 minutes
 
-// Default NIFTY 50 pool for gainers / losers tabs
+// Broad pool for gainers / losers / short-term scoring (Nifty 50 + Nifty Next 50 highlights)
 const NIFTY50 = [
-  'RELIANCE', 'TCS', 'INFY', 'HDFCBANK', 'ICICIBANK',
-  'HINDUNILVR', 'WIPRO', 'BAJFINANCE', 'SBIN', 'AXISBANK',
-  'LT', 'KOTAKBANK', 'ITC', 'TITAN', 'SUNPHARMA',
-  'TATAMOTORS', 'TATASTEEL', 'ADANIPORTS', 'POWERGRID', 'NTPC',
-  'MARUTI', 'BHARTIARTL', 'NESTLEIND', 'DRREDDY', 'HCLTECH',
+  'RELIANCE',   'TCS',        'INFY',       'HDFCBANK',   'ICICIBANK',
+  'HINDUNILVR', 'WIPRO',      'BAJFINANCE', 'SBIN',       'AXISBANK',
+  'LT',         'KOTAKBANK',  'ITC',        'TITAN',      'SUNPHARMA',
+  'TATAMOTORS', 'TATASTEEL',  'ADANIPORTS', 'POWERGRID',  'NTPC',
+  'MARUTI',     'BHARTIARTL', 'NESTLEIND',  'DRREDDY',    'HCLTECH',
+  'M&M',        'ONGC',       'COALINDIA',  'JSWSTEEL',   'ASIANPAINT',
+  'BAJAJFINSV', 'BAJAJ-AUTO', 'HEROMOTOCO', 'EICHERMOT',  'TECHM',
+  'DIVISLAB',   'ULTRACEMCO', 'HINDALCO',   'VEDL',       'BPCL',
+  'TATACONSUM', 'TATAPOWER',  'INDIGO',     'DMART',      'ZOMATO',
+  'INDUSINDBK', 'HDFCLIFE',   'SBILIFE',    'BANKBARODA', 'PNB',
+];
+
+// Curated long-term blue-chip pool (quality > momentum)
+const LONG_TERM_POOL = [
+  'HDFCBANK',  'TCS',       'INFY',      'ICICIBANK',  'RELIANCE',
+  'WIPRO',     'ASIANPAINT','TITAN',     'KOTAKBANK',  'NESTLEIND',
+  'HCLTECH',   'SUNPHARMA', 'MARUTI',    'BHARTIARTL', 'BAJFINANCE',
+  'LT',        'AXISBANK',  'DRREDDY',   'HINDUNILVR', 'DIVISLAB',
+  'ULTRACEMCO','TATACONSUM','HDFCLIFE',  'SBILIFE',    'BAJAJFINSV',
 ];
 
 /**
@@ -37,7 +51,7 @@ export function useNseWatchlist(customSymbols = []) {
   const customKey = [...new Set(customSymbols)].sort().join(',');
 
   const fetchAll = useCallback(async () => {
-    const all = [...new Set([...NIFTY50, ...customSymbols])];
+    const all = [...new Set([...NIFTY50, ...LONG_TERM_POOL, ...customSymbols])];
     try {
       const res = await fetch(`${API_BASE}/api/nse/batch`, {
         method:  'POST',
@@ -81,8 +95,8 @@ export function useNseWatchlist(customSymbols = []) {
   // Losers: bottom 15 worst performers
   const losers  = [...sorted].reverse().slice(0, 15);
 
-  // Recommended: top 10 scored by momentum (60%) + volume strength (40%)
-  const recommended = (() => {
+  // Short-term picks (15): high momentum × volume — intraday / swing trading focus
+  const shortTermPicks = (() => {
     const valid = niftyQuotes.filter(q => q.volume > 0 && q.price > 0);
     if (!valid.length) return [];
     const maxVol    = Math.max(...valid.map(q => q.volume));
@@ -95,7 +109,17 @@ export function useNseWatchlist(customSymbols = []) {
         _score: ((q.change - minChange) / chgRange) * 0.6 + (q.volume / maxVol) * 0.4,
       }))
       .sort((a, b) => b._score - a._score)
-      .slice(0, 10);
+      .slice(0, 15);
+  })();
+
+  // Long-term picks (15): blue-chip pool sorted by today's relative strength
+  const longTermPicks = (() => {
+    const pool = quotes.filter(q => LONG_TERM_POOL.includes(q.symbol) && q.price > 0);
+    if (!pool.length) return [];
+    // Sort by change desc so strongest performers in the blue-chip basket appear first
+    return [...pool]
+      .sort((a, b) => b.change - a.change)
+      .slice(0, 15);
   })();
 
   // Live-priced custom stocks (same order as customSymbols)
@@ -112,7 +136,7 @@ export function useNseWatchlist(customSymbols = []) {
     : null;
 
   return {
-    gainers, losers, recommended,
+    gainers, losers, shortTermPicks, longTermPicks,
     quotes, customStocks,
     loading, error, lastRefresh,
     marketOpen, prevSessionDate,

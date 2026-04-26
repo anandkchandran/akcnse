@@ -103,7 +103,7 @@ function sectorColor(s) { return SECTOR_COLORS[s] || '#6b7280'; }
 const BROWSE_SECTORS = ['All', 'Banking', 'IT', 'Auto', 'Pharma', 'FMCG', 'Finance', 'Energy', 'Infra', 'Consumer'];
 
 // ── Symbol search ─────────────────────────────────────────────────────────────
-function SymbolSearch({ symbol, onSymbol, onAddToWatchlist }) {
+function SymbolSearch({ symbol, onSymbol }) {
   const { colors: C, theme } = useTheme();
   const [query,    setQuery]    = useState('');
   const [open,     setOpen]     = useState(false);
@@ -391,17 +391,10 @@ function SymbolSearch({ symbol, onSymbol, onAddToWatchlist }) {
                     </div>
                   </div>
 
-                  {/* Right: check + watchlist */}
-                  <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexShrink: 0, marginLeft: 8 }}>
-                    {isCurrent && <span style={{ fontSize: 10, color: '#10d67a' }}>✓</span>}
-                    <button
-                      className="button-accent"
-                      onClick={e => { e.stopPropagation(); onAddToWatchlist(s); }}
-                      style={{ fontSize: 9, padding: '2px 7px' }}
-                    >
-                      + Watch
-                    </button>
-                  </div>
+                  {/* Right: active check */}
+                  {isCurrent && (
+                    <span style={{ fontSize: 12, color: '#10d67a', flexShrink: 0, marginLeft: 8 }}>✓</span>
+                  )}
                 </div>
               );
             })}
@@ -474,7 +467,6 @@ export default function Header({
           <SymbolSearch
             symbol={symbol}
             onSymbol={onSymbol}
-            onAddToWatchlist={onAddToWatchlist}
           />
 
           {/* Timeframe pill */}

@@ -137,10 +137,10 @@ export function useNseWatchlist(customSymbols = []) {
   const broadQuotes = quotes.filter(q => BROAD_POOL.includes(q.symbol) && q.price > 0);
   const sorted      = [...broadQuotes].sort((a, b) => b.change - a.change);
 
-  // Gainers: top 15 best performers across all caps
-  const gainers = sorted.slice(0, 15);
-  // Losers: bottom 15 worst performers across all caps
-  const losers  = [...sorted].reverse().slice(0, 15);
+  // Gainers: top 50 best performers across all caps
+  const gainers = sorted.slice(0, 50);
+  // Losers: bottom 50 worst performers across all caps
+  const losers  = [...sorted].reverse().slice(0, 50);
 
   // Long-term picks (top 50): full blue-chip pool sorted by today's relative strength.
   // Ranks the 50-stock quality pool by session % change so the currently strongest

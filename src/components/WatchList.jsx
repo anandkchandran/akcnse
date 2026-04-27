@@ -235,8 +235,8 @@ export default function WatchList({ currentSymbol, onSelect, customIds = [], onA
   // ── Tab definitions ─────────────────────────────────────────────────────────
   const TABS = [
     { id: 'buy',     label: '📈 Top Picks', color: '#10d67a' },
-    { id: 'gainers', label: '▲ Top',        color: C.bull    },
-    { id: 'losers',  label: '▼ Bottom',     color: C.bear    },
+    { id: 'gainers', label: '▲ Gainers',     color: C.bull    },
+    { id: 'losers',  label: '▼ Losers',     color: C.bear    },
   ];
 
   const listMap = {

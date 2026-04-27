@@ -185,10 +185,40 @@ async function handleNseChart(body) {
     };
   }).filter(c => c.close !== null && c.close > 0);
 
+  // ── Compute day change from candles (more reliable than meta field) ─────────
+  // meta.regularMarketChangePercent is often 0/null for NSE stocks outside
+  // market hours. Instead, compare last close vs previous trading day's close.
+  let dayChange = meta.regularMarketChangePercent || 0;
+  {
+    const istDate = ts => new Date(ts * 1000)
+      .toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
+    const dailyCandles = (() => {
+      // For intraday timeframes, group by date and use each day's last close
+      if (['5m','15m','30m','45m','1h'].includes(timeframe)) {
+        const byDate = {};
+        for (const c of candles) {
+          const d = istDate(c.timestamp);
+          byDate[d] = c; // last candle of each day wins
+        }
+        return Object.values(byDate).sort((a, b) => a.timestamp - b.timestamp);
+      }
+      // For daily/weekly/monthly, candles are already one-per-period
+      return candles;
+    })();
+
+    if (dailyCandles.length >= 2) {
+      const lastClose = dailyCandles.at(-1)?.close;
+      const prevClose = dailyCandles.at(-2)?.close;
+      if (lastClose && prevClose && prevClose !== 0) {
+        dayChange = ((lastClose - prevClose) / prevClose) * 100;
+      }
+    }
+  }
+
   const ticker_info = {
     price:     meta.regularMarketPrice        || meta.previousClose || 0,
     prevClose: meta.previousClose             || 0,
-    change:    meta.regularMarketChangePercent|| 0,
+    change:    dayChange,
     high24:    meta.regularMarketDayHigh      || 0,
     low24:     meta.regularMarketDayLow       || 0,
     volume:    meta.regularMarketVolume       || 0,

@@ -60,6 +60,9 @@ export default function TradingViewWidget({ symbol, candles, inds }) {
         },
         crosshair:       { mode: 1 },
         rightPriceScale: { borderColor: dark ? '#1a2236' : '#d1d5db' },
+        localization: {
+          timezone: 'Asia/Kolkata',   // force IST on time axis
+        },
         timeScale: {
           borderColor:    dark ? '#1a2236' : '#d1d5db',
           timeVisible:    true,

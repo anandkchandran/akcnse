@@ -191,7 +191,6 @@ export const TIMEFRAMES = [
   { label: '5m',  id: '5m',  yahoo: '5m',  tv: '5'   },
   { label: '15m', id: '15m', yahoo: '15m', tv: '15'  },
   { label: '30m', id: '30m', yahoo: '30m', tv: '30'  },
-  { label: '45m', id: '45m', yahoo: '60m', tv: '45'  }, // YF has no 45m; uses 60m candles
   { label: '1h',  id: '1h',  yahoo: '60m', tv: '60'  },
   { label: '1D',  id: '1d',  yahoo: '1d',  tv: 'D'   },
   { label: '1W',  id: '1w',  yahoo: '1wk', tv: 'W'   },

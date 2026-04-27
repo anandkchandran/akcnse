@@ -59,7 +59,7 @@ function MobileTabBar({ active, onChange, C }) {
 // ── Main app ──────────────────────────────────────────────────────────────────
 function AppInner() {
   const [symbol,    setSymbol]    = useState(EQUITY_SYMBOLS[0]);
-  const [timeframe, setTimeframe] = useState(TIMEFRAMES[5]); // 1D default
+  const [timeframe, setTimeframe] = useState(TIMEFRAMES[4]); // 1D default
   const [view,      setView]      = useState('indicators');
   const [mobTab,    setMobTab]    = useState('markets');
 

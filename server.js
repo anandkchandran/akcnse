@@ -142,7 +142,6 @@ const TF_MAP = {
   '5m':  { interval: '5m',  range: '60d'  },
   '15m': { interval: '15m', range: '60d'  },
   '30m': { interval: '30m', range: '60d'  },
-  '45m': { interval: '60m', range: '6mo'  }, // YF has no 45m; use 60m
   '1h':  { interval: '60m', range: '6mo'  },
   '4h':  { interval: '1d',  range: '2y'   }, // 4h not available in YF, use 1d
   '1d':  { interval: '1d',  range: '2y'   },

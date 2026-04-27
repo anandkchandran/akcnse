@@ -390,8 +390,8 @@ export default function WatchList({ currentSymbol, onSelect, customIds = [], onA
         </div>
       )}
 
-      {/* ── Empty Picks (server not running) ── */}
-      {!loading && tab === 'buy' && list.length === 0 && (
+      {/* ── Empty state ── */}
+      {!loading && list.length === 0 && (
         <div style={{
           padding:    '20px 12px',
           fontFamily: "'Raleway', sans-serif",
@@ -400,10 +400,20 @@ export default function WatchList({ currentSymbol, onSelect, customIds = [], onA
           textAlign:  'center',
           lineHeight:  1.6,
         }}>
-          <div style={{ fontSize: 22, marginBottom: 8 }}>📈</div>
-          No data yet.
-          <br />
-          <span style={{ fontSize: 10 }}>Requires node server.js<br />to load live NSE data.</span>
+          <div style={{ fontSize: 22, marginBottom: 8 }}>
+            {tab === 'buy' ? '📈' : tab === 'gainers' ? '▲' : '▼'}
+          </div>
+          {tab === 'buy'
+            ? <>No data yet.<br /><span style={{ fontSize: 10 }}>Requires node server.js<br />to load live NSE data.</span></>
+            : <>
+                Market scan pending…
+                <br />
+                <span style={{ fontSize: 10 }}>
+                  First scan takes ~10–15s<br />
+                  (fetches ~{scanned > 0 ? scanned : '320'} NSE stocks)
+                </span>
+              </>
+          }
         </div>
       )}
 

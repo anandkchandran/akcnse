@@ -278,14 +278,58 @@ const NSE_UNIVERSE = [
 // ── Market-movers cache ───────────────────────────────────────────────────────
 const _moversCache = { data: null, fetchedAt: 0 };
 
-// Batch-fetch quotes via Yahoo Finance /v7/finance/quote (up to 100 symbols per call)
-async function yfQuoteBatch(nsSymbols) {
-  // Encode each symbol (handles M&M → M%26M) then join with commas
-  const symbolsParam = nsSymbols.map(s => encodeURIComponent(s)).join(',');
-  const fields = 'regularMarketPrice,regularMarketChangePercent,regularMarketVolume,longName,shortName';
-  const urlPath = `/v7/finance/quote?symbols=${symbolsParam}&fields=${fields}&formatted=false&region=IN&lang=en-IN`;
-  const data = await yfFetch(urlPath);
-  return data?.quoteResponse?.result || [];
+// Single daily-change quote via proven v8/chart endpoint (interval=1d, range=5d).
+// Uses the same infrastructure as the chart viewer — no crumb/session required.
+async function fetchDailyQuote(symbol) {
+  const ticker = symbol.endsWith('.NS') ? symbol : `${symbol}.NS`;
+  try {
+    const data   = await yfFetch(`/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=5d&includePrePost=false`);
+    const result = data?.chart?.result?.[0];
+    if (!result) return null;
+
+    const meta  = result.meta || {};
+    const qdata = result.indicators?.quote?.[0] || {};
+    const tss   = result.timestamp || [];
+
+    const candles = tss
+      .map((ts, i) => ({
+        date:  new Date(ts * 1000).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }),
+        close: qdata.close?.[i],
+      }))
+      .filter(c => c.close != null && c.close > 0);
+
+    // Calculate session % change from last two trading days
+    let change = meta.regularMarketChangePercent ?? 0;
+    const dates = [...new Set(candles.map(c => c.date))];
+    if (dates.length >= 2) {
+      const lc = candles.filter(c => c.date === dates.at(-1)).at(-1)?.close;
+      const pc = candles.filter(c => c.date === dates.at(-2)).at(-1)?.close;
+      if (lc && pc) change = ((lc - pc) / pc) * 100;
+    }
+
+    if (!(meta.regularMarketPrice > 0)) return null;
+    return {
+      symbol,
+      price:  meta.regularMarketPrice  || 0,
+      change,
+      volume: meta.regularMarketVolume || 0,
+      name:   meta.longName || meta.shortName || symbol,
+    };
+  } catch { return null; }
+}
+
+// Run async tasks with controlled concurrency (avoids rate-limiting 320 simultaneous requests).
+async function runConcurrent(fns, limit) {
+  const results = new Array(fns.length);
+  let next = 0;
+  async function worker() {
+    while (next < fns.length) {
+      const i = next++;
+      results[i] = await fns[i]();
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, fns.length) }, worker));
+  return results;
 }
 
 // Build and cache market-wide movers: top-50 gainers + top-50 losers
@@ -296,38 +340,24 @@ async function fetchMarketMovers() {
     return _moversCache.data;
   }
 
-  log('MOVERS', `Scanning ${NSE_UNIVERSE.length} NSE symbols…`);
+  const symbols = [...new Set(NSE_UNIVERSE)];
+  log('MOVERS', `Scanning ${symbols.length} NSE symbols (concurrency=25)…`);
 
-  // De-duplicate and append .NS suffix
-  const tickers = [...new Set(NSE_UNIVERSE)].map(s => s.endsWith('.NS') ? s : `${s}.NS`);
-
-  // Chunk into batches of 100 and fetch in parallel
-  const CHUNK = 100;
-  const chunks = [];
-  for (let i = 0; i < tickers.length; i += CHUNK) chunks.push(tickers.slice(i, i + CHUNK));
-
-  const settled = await Promise.allSettled(chunks.map(c => yfQuoteBatch(c)));
-
-  const allQuotes = settled
-    .filter(r => r.status === 'fulfilled')
-    .flatMap(r => r.value)
-    .filter(q => q.regularMarketPrice > 0 && q.regularMarketChangePercent != null);
-
-  const normalize = q => ({
-    symbol:  q.symbol.replace('.NS', ''),
-    price:   q.regularMarketPrice   || 0,
-    change:  q.regularMarketChangePercent || 0,
-    volume:  q.regularMarketVolume  || 0,
-    name:    q.longName || q.shortName || q.symbol.replace('.NS', ''),
-  });
-
-  const byChange = [...allQuotes].sort((a, b) =>
-    b.regularMarketChangePercent - a.regularMarketChangePercent
+  const rawResults = await runConcurrent(
+    symbols.map(sym => () => fetchDailyQuote(sym)),
+    25  // 25 concurrent v8/chart requests — avoids Yahoo Finance rate-limiting
   );
 
+  const allQuotes = rawResults.filter(q => q && q.price > 0);
+
+  if (allQuotes.length === 0) {
+    throw new Error(`Market scanner returned no data from Yahoo Finance (${symbols.length} symbols tried)`);
+  }
+
+  const sorted = [...allQuotes].sort((a, b) => b.change - a.change);
   const data = {
-    gainers:   byChange.slice(0, 50).map(normalize),
-    losers:    [...byChange].reverse().slice(0, 50).map(normalize),
+    gainers:   sorted.slice(0, 50),
+    losers:    [...sorted].reverse().slice(0, 50),
     scanned:   allQuotes.length,
     fetchedAt: now,
     marketOpen: isNseOpen(),
@@ -335,7 +365,7 @@ async function fetchMarketMovers() {
 
   _moversCache.data      = data;
   _moversCache.fetchedAt = now;
-  log('MOVERS', `Done — scanned ${data.scanned} stocks`);
+  log('MOVERS', `Done — scanned ${data.scanned} / ${symbols.length} stocks`);
   return data;
 }
 

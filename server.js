@@ -200,6 +200,145 @@ async function handleNseChart(body) {
   return { candles, ticker: ticker_info };
 }
 
+// ── NSE Market-Wide Universe (Nifty 500 + key SmallCap) ──────────────────────
+// Covers ~450 NSE equities — refreshed against index constituents quarterly.
+// Yahoo Finance /v7/quote accepts ~100 symbols per request; we chunk & parallel-fetch.
+const NSE_UNIVERSE = [
+  // ── Nifty 50 ──────────────────────────────────────────────────────────────
+  'RELIANCE',  'TCS',       'HDFCBANK',  'ICICIBANK',  'INFY',
+  'HINDUNILVR','WIPRO',     'BAJFINANCE','SBIN',       'AXISBANK',
+  'LT',        'KOTAKBANK', 'ITC',       'TITAN',      'SUNPHARMA',
+  'TATAMOTORS','TATASTEEL', 'ADANIPORTS','POWERGRID',  'NTPC',
+  'MARUTI',    'BHARTIARTL','NESTLEIND', 'DRREDDY',    'HCLTECH',
+  'M&M',       'ONGC',      'COALINDIA', 'JSWSTEEL',   'ASIANPAINT',
+  'BAJAJFINSV','BAJAJ-AUTO','HEROMOTOCO','EICHERMOT',  'TECHM',
+  'DIVISLAB',  'ULTRACEMCO','HINDALCO',  'VEDL',       'BPCL',
+  'TATACONSUM','TATAPOWER', 'INDIGO',    'DMART',      'ZOMATO',
+  'INDUSINDBK','HDFCLIFE',  'SBILIFE',   'BANKBARODA', 'PNB',
+  // ── Nifty Next 50 ─────────────────────────────────────────────────────────
+  'ADANIENT',  'ADANIGREEN','ATGL',      'AMBUJACEM',  'BAJAJHLDNG',
+  'BEL',       'BERGEPAINT','BOSCHLTD',  'BRITANNIA',  'CHOLAFIN',
+  'CIPLA',     'COLPAL',    'DLF',       'GAIL',       'GODREJCP',
+  'HAVELLS',   'HDFCAMC',   'HINDZINC',  'ICICIPRULI', 'ICICIGI',
+  'IRCTC',     'JINDALSTEL','LTF',       'LTIM',       'MCDOWELL-N',
+  'NAUKRI',    'NHPC',      'PIDILITIND','POLYCAB',    'RECLTD',
+  'SBICARD',   'SHREECEM',  'SIEMENS',   'TATACOMM',   'TORNTPHARM',
+  'TRENT',     'TVSMOTOR',  'UNIONBANK', 'VBL',        'VOLTAS',
+  'ZYDUSLIFE', 'APOLLOHOSP','ACC',       'NYKAA',      'MARICO',
+  'GODREJPROP','MUTHOOTFIN','SUNTV',     'ADANIPOWER', 'LICI',
+  // ── Nifty Midcap 150 ──────────────────────────────────────────────────────
+  'ABBOTINDIA','AARTIIND',  'AIAENG',    'AJANTPHARM', 'ALKEM',
+  'ANGELONE',  'ASHOKLEY',  'ASTRAL',    'ATUL',       'AUBANK',
+  'AUROPHARMA','BALKRISIND','BANDHANBNK','BATAINDIA',  'BHARATFORG',
+  'BIOCON',    'BIRLASOFT', 'BLUESTARCO','BSE',        'CAMS',
+  'CANFINHOME','CASTROLIND','CEAT',      'CGPOWER',    'COFORGE',
+  'CONCOR',    'CROMPTON',  'DABUR',     'DEEPAKNTR',  'DELTACORP',
+  'EMAMILTD',  'ESCORTS',   'EXIDEIND',  'FEDERALBNK', 'GLENMARK',
+  'GODREJIND', 'GRANULES',  'GSPL',      'HONAUT',     'IDFCFIRSTB',
+  'INDHOTEL',  'INDIAMART', 'IOC',       'IRFC',       'JKCEMENT',
+  'JUBLFOOD',  'KAJARIACER','KFINTECH',  'KPITTECH',   'LICHSGFIN',
+  'LODHA',     'LTTS',      'LUPIN',     'MANAPPURAM', 'MAXHEALTH',
+  'METROPOLIS','MGL',       'MFSL',      'MPHASIS',    'NATIONALUM',
+  'NCC',       'OBEROIRLTY','OFSS',      'PERSISTENT', 'PFC',
+  'PGHH',      'PHOENIXLTD','PRESTIGE',  'RBLBANK',    'SAIL',
+  'SCHAEFFLER','SOLARINDS', 'SRF',       'SUNDARMFIN', 'SUPREMEIND',
+  'SYNGENE',   'TATAELXSI', 'TATATECH',  'TIINDIA',    'TORNTPOWER',
+  'TRIDENT',   'VOLTAS',    'WHIRLPOOL', 'HPCL',       'IOB',
+  'CUMMINSIND','BHEL',      'DEEPAKFERT','GUJGASLTD',  'IGL',
+  'LALPATHLAB','NATCOPHARM','PCBL',      'PNBHOUSING', 'ROUTE',
+  'SHRIRAMFIN','STAR',      'UJJIVANSFB','VGUARD',     'WELCORP',
+  'INDIACEM',  'SUVENPHAR', 'JYOTHYLAB', 'KPIL',       'MASTEK',
+  'PRAJ',      'RATEGAIN',  'NUVOCO',    'RAMKRISHNA', 'CENTURYTEX',
+  'CHAMBLFERT','JBCHEPHARM','KNRCON',    'NAVINFLUOR', 'OLECTRA',
+  'PAYTM',     'ROSSELLIND','SPARC',     'SUMICHEM',   'TATACOMM',
+  'JINDALSAW', 'KIOCL',     'MOLDTKPAC', 'RITES',      'SYMPHONY',
+  // ── Nifty Smallcap 250 (key liquid names) ─────────────────────────────────
+  'AAVAS',     'CAMPUS',    'DELHIVERY', 'EASEMYTRIP', 'GLAND',
+  'HAPPSTMNDS','LATENTVIEW','LAXMIMACH', 'RAILTEL',    'SANSERA',
+  'TANLA',     'WINDLAS',   'ANGELBRKG', 'APTUS',      'BSOFT',
+  'CARTRADE',  'CHALET',    'CLEAN',     'CMSINFO',    'DATAMATICS',
+  'DELTACORP', 'DHARMAJ',   'DMART',     'EPIGRAL',    'FINEORG',
+  'GATEWAY',   'HARIOMPIPE','IDEAFORGE',  'INDIGOPNTS', 'INNOVACAP',
+  'JAMNAAUTO', 'KARURVYSYA','KPRMILL',   'KRBL',       'LGBBROSLTD',
+  'MAHINDCIE', 'MEDPLUS',   'NESCO',     'NEWGEN',     'ORIENTELEC',
+  'PENIND',    'POLYMED',   'PRUDENT',   'RADICO',     'SAFARI',
+  'SENCO',     'SHOPERSTOP','SIGNATUREG','SOBHA',       'STLTECH',
+  'SUBROS',    'SWSOLAR',   'TATAINVEST','TEXMOPIPES', 'TIPSINDLTD',
+  'TORNTPOWER','UCOBANK',   'UJJIVAN',   'VARROC',     'VIPIND',
+  'WOCKPHARMA','XPRO',      'YESBANK',   'ZENTEC',     'ZUARI',
+  // ── Additional active / thematic ──────────────────────────────────────────
+  'CANBK',     'INDIANB',   'MAHABANK',  'IDBI',       'BANDHANBNK',
+  'CSLTD',     'DIXON',     'KAYNES',    'SYRMA',      'AMBER',
+  'IDEAFORGE', 'EXICOM',    'WAAREE',    'PREMIERE',   'RPOWER',
+  'SUZLON',    'NHPC',      'SJVN',      'NTPCGREEN',  'GREENKO',
+  'ZEEL',      'PVRINOX',   'NYKAA',     'CARTRADE',   'DELHIVERY',
+  'MAPMYINDIA','AFFLE',     'INFOEDGE',  'JUSTDIAL',   'MATRIMONY',
+];
+
+// ── Market-movers cache ───────────────────────────────────────────────────────
+const _moversCache = { data: null, fetchedAt: 0 };
+
+// Batch-fetch quotes via Yahoo Finance /v7/finance/quote (up to 100 symbols per call)
+async function yfQuoteBatch(nsSymbols) {
+  // Encode each symbol (handles M&M → M%26M) then join with commas
+  const symbolsParam = nsSymbols.map(s => encodeURIComponent(s)).join(',');
+  const fields = 'regularMarketPrice,regularMarketChangePercent,regularMarketVolume,longName,shortName';
+  const urlPath = `/v7/finance/quote?symbols=${symbolsParam}&fields=${fields}&formatted=false&region=IN&lang=en-IN`;
+  const data = await yfFetch(urlPath);
+  return data?.quoteResponse?.result || [];
+}
+
+// Build and cache market-wide movers: top-50 gainers + top-50 losers
+async function fetchMarketMovers() {
+  const now = Date.now();
+  const ttl = isNseOpen() ? 120_000 : 300_000; // 2 min live, 5 min closed
+  if (_moversCache.data && (now - _moversCache.fetchedAt) < ttl) {
+    return _moversCache.data;
+  }
+
+  log('MOVERS', `Scanning ${NSE_UNIVERSE.length} NSE symbols…`);
+
+  // De-duplicate and append .NS suffix
+  const tickers = [...new Set(NSE_UNIVERSE)].map(s => s.endsWith('.NS') ? s : `${s}.NS`);
+
+  // Chunk into batches of 100 and fetch in parallel
+  const CHUNK = 100;
+  const chunks = [];
+  for (let i = 0; i < tickers.length; i += CHUNK) chunks.push(tickers.slice(i, i + CHUNK));
+
+  const settled = await Promise.allSettled(chunks.map(c => yfQuoteBatch(c)));
+
+  const allQuotes = settled
+    .filter(r => r.status === 'fulfilled')
+    .flatMap(r => r.value)
+    .filter(q => q.regularMarketPrice > 0 && q.regularMarketChangePercent != null);
+
+  const normalize = q => ({
+    symbol:  q.symbol.replace('.NS', ''),
+    price:   q.regularMarketPrice   || 0,
+    change:  q.regularMarketChangePercent || 0,
+    volume:  q.regularMarketVolume  || 0,
+    name:    q.longName || q.shortName || q.symbol.replace('.NS', ''),
+  });
+
+  const byChange = [...allQuotes].sort((a, b) =>
+    b.regularMarketChangePercent - a.regularMarketChangePercent
+  );
+
+  const data = {
+    gainers:   byChange.slice(0, 50).map(normalize),
+    losers:    [...byChange].reverse().slice(0, 50).map(normalize),
+    scanned:   allQuotes.length,
+    fetchedAt: now,
+    marketOpen: isNseOpen(),
+  };
+
+  _moversCache.data      = data;
+  _moversCache.fetchedAt = now;
+  log('MOVERS', `Done — scanned ${data.scanned} stocks`);
+  return data;
+}
+
 // ── NSE Batch quotes ──────────────────────────────────────────────────────────
 //
 // Single 60-minute candle fetch (interval=60m, range=5d) gives us everything:
@@ -506,6 +645,24 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       const result = await handleNseChart(body);
       res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(result));
+    } catch (err) {
+      log('HTTP', `→ 500  ${err.message.slice(0, 100)}`);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+
+  // GET /api/nse/market-movers — market-wide gainers / losers scan
+  if (req.method === 'GET' && req.url === '/api/nse/market-movers') {
+    log('HTTP', 'GET /api/nse/market-movers');
+    try {
+      const result = await fetchMarketMovers();
+      res.writeHead(200, {
+        'Content-Type':  'application/json',
+        'Cache-Control': `max-age=${isNseOpen() ? 60 : 240}`,
+      });
       res.end(JSON.stringify(result));
     } catch (err) {
       log('HTTP', `→ 500  ${err.message.slice(0, 100)}`);

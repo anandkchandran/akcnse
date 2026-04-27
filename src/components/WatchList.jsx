@@ -224,7 +224,7 @@ export default function WatchList({ currentSymbol, onSelect, customIds = [], onA
   const { colors: C } = useTheme();
   const [tab, setTab] = useState('buy'); // buy | gainers | losers
 
-  const { gainers, losers, longTermPicks, customStocks, loading, error, lastRefresh, refresh, marketOpen, prevSessionDate } =
+  const { gainers, losers, longTermPicks, customStocks, loading, error, lastRefresh, refresh, marketOpen, prevSessionDate, scanned } =
     useNseWatchlist(customIds);
 
   const handleSelect = (symbolId) => {
@@ -351,8 +351,8 @@ export default function WatchList({ currentSymbol, onSelect, customIds = [], onA
           )}
           {(tab === 'gainers' || tab === 'losers') && (
             marketOpen
-              ? 'All caps · ranked by hourly change · NSE live'
-              : `All caps · last session change${prevSessionDate ? ` · ${prevSessionDate}` : ''} · market closed`
+              ? `Top 50 of ${scanned || '~450'} NSE stocks · ranked by session change`
+              : `Top 50 of ${scanned || '~450'} NSE stocks${prevSessionDate ? ` · ${prevSessionDate}` : ''} · market closed`
           )}
         </div>
       )}

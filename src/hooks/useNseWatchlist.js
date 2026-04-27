@@ -1,56 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { isMarketOpen } from '../constants';
-
 import { API_BASE } from '../utils/api.js';
-const REFRESH_MS = 120_000; // 2 minutes
 
-// ── Cap-segmented pools ───────────────────────────────────────────────────────
+const REFRESH_MS       = 120_000; // 2 minutes
+const MOVERS_REFRESH_MS = 90_000; // 90 seconds — slightly faster than batch
 
-// Large-cap: Nifty 50 universe
-const LARGE_CAP_POOL = [
-  'RELIANCE',   'TCS',        'INFY',       'HDFCBANK',   'ICICIBANK',
-  'HINDUNILVR', 'WIPRO',      'BAJFINANCE', 'SBIN',       'AXISBANK',
-  'LT',         'KOTAKBANK',  'ITC',        'TITAN',      'SUNPHARMA',
-  'TATAMOTORS', 'TATASTEEL',  'ADANIPORTS', 'POWERGRID',  'NTPC',
-  'MARUTI',     'BHARTIARTL', 'NESTLEIND',  'DRREDDY',    'HCLTECH',
-  'M&M',        'ONGC',       'COALINDIA',  'JSWSTEEL',   'ASIANPAINT',
-  'BAJAJFINSV', 'BAJAJ-AUTO', 'HEROMOTOCO', 'EICHERMOT',  'TECHM',
-  'DIVISLAB',   'ULTRACEMCO', 'HINDALCO',   'VEDL',       'BPCL',
-  'TATACONSUM', 'TATAPOWER',  'INDIGO',     'DMART',      'ZOMATO',
-  'INDUSINDBK', 'HDFCLIFE',   'SBILIFE',    'BANKBARODA', 'PNB',
-];
-
-// Mid-cap: quality names across sectors
-const MID_CAP_POOL = [
-  // FMCG
-  'BRITANNIA', 'COLPAL',    'DABUR',      'GODREJCP',   'EMAMILTD',  'ASTRAL',
-  // Auto
-  'ASHOKLEY',  'TVSMOTOR',  'BALKRISIND',
-  // Infra / Real-estate / Cement
-  'DLF',       'GODREJPROP','OBEROIRLTY', 'LODHA',
-  'SHREECEM',  'ACC',       'AMBUJACEM',
-  // Industrials / Chemicals
-  'DEEPAKNTR', 'POLYCAB',   'CUMMINSIND', 'BHEL',
-  // Energy
-  'GAIL',      'IOC',       'HPCL',
-  // IT
-  'LTTS',      'KPITTECH',  'TATATECH',
-  // Banking / Finance
-  'UNIONBANK', 'CAMS',      'KFINTECH',
-  // Pharma
-  'ALKEM',     'SYNGENE',   'METROPOLIS',
-];
-
-// Small-cap: high-growth / emerging names
-const SMALL_CAP_POOL = [
-  'HAPPSTMNDS', 'LATENTVIEW', 'TANLA',
-  'RAILTEL',    'AAVAS',      'DELHIVERY',
-];
-
-// Broad pool for gainers / losers (all caps)
-const BROAD_POOL = [...LARGE_CAP_POOL, ...MID_CAP_POOL, ...SMALL_CAP_POOL];
-
-// Curated long-term pool — blue-chips + select quality mid/small-caps
+// ── Top Picks pool (long-term quality, all caps) ──────────────────────────────
+// Used only for the "Top Picks" tab; gainers/losers come from server-side scan.
 const LONG_TERM_POOL = [
   // Large-cap: Banking & Finance
   'HDFCBANK',  'ICICIBANK',  'KOTAKBANK',  'AXISBANK',   'SBIN',
@@ -75,30 +31,59 @@ const LONG_TERM_POOL = [
 ];
 
 /**
- * Fetch live quotes for NIFTY 50 + any custom symbols.
+ * useNseWatchlist
  *
- * The server resolves which `change` value to use:
- *   - Market open  → regularMarketChangePercent (real-time intraday)
- *   - Market closed → candle-derived prevSessionChange (last complete session)
+ * - gainers / losers  : from GET /api/nse/market-movers
+ *     Server scans ~450 NSE symbols, sorts, caches 2 min.
+ *     No pre-defined pool needed — any stock can appear.
  *
- * The hook just consumes `change` as returned; no client-side swapping needed.
+ * - longTermPicks      : from POST /api/nse/batch (LONG_TERM_POOL)
+ *     Curated quality picks, ranked by session strength.
  *
- * @param {string[]} customSymbols  – extra symbol IDs to include
+ * - customStocks       : from same batch call as longTermPicks.
  */
 export function useNseWatchlist(customSymbols = []) {
-  const [quotes,      setQuotes]      = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [error,       setError]       = useState(null);
-  const [lastRefresh, setLastRefresh] = useState(null);
+  // ── Market movers state ──────────────────────────────────────────────────
+  const [gainers,    setGainers]    = useState([]);
+  const [losers,     setLosers]     = useState([]);
+  const [moversLoading, setMoversLoading] = useState(true);
+  const [moversError,   setMoversError]   = useState(null);
+  const [scanned,    setScanned]    = useState(0);
 
-  const mountedRef = useRef(true);
-  const timerRef   = useRef(null);
+  // ── Batch (Top Picks + custom) state ────────────────────────────────────
+  const [quotes,     setQuotes]     = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState(null);
+  const [lastRefresh,setLastRefresh]= useState(null);
 
-  // Stable key so useCallback re-runs only when the custom list changes
-  const customKey = [...new Set(customSymbols)].sort().join(',');
+  const mountedRef  = useRef(true);
+  const moversTimer = useRef(null);
+  const batchTimer  = useRef(null);
+  const customKey   = [...new Set(customSymbols)].sort().join(',');
 
-  const fetchAll = useCallback(async () => {
-    const all = [...new Set([...BROAD_POOL, ...LONG_TERM_POOL, ...customSymbols])];
+  // ── Fetch market-wide gainers / losers ───────────────────────────────────
+  const fetchMovers = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/nse/market-movers`);
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      if (!mountedRef.current) return;
+      setGainers(data.gainers || []);
+      setLosers(data.losers  || []);
+      setScanned(data.scanned || 0);
+      setMoversLoading(false);
+      setMoversError(null);
+    } catch (err) {
+      if (!mountedRef.current) return;
+      setMoversError(err.message);
+      setMoversLoading(false);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Fetch Top Picks + custom symbols ────────────────────────────────────
+  const fetchBatch = useCallback(async () => {
+    const all = [...new Set([...LONG_TERM_POOL, ...customSymbols])];
     try {
       const res = await fetch(`${API_BASE}/api/nse/batch`, {
         method:  'POST',
@@ -120,57 +105,65 @@ export function useNseWatchlist(customSymbols = []) {
     }
   }, [customKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Effects ──────────────────────────────────────────────────────────────
   useEffect(() => {
     mountedRef.current = true;
+
+    // Market movers — fire immediately, then every 90s
+    setMoversLoading(true);
+    fetchMovers();
+    clearInterval(moversTimer.current);
+    moversTimer.current = setInterval(fetchMovers, MOVERS_REFRESH_MS);
+
+    // Batch (top picks + custom) — fire immediately, then every 2min
     setLoading(true);
-    fetchAll();
-    clearInterval(timerRef.current);
-    timerRef.current = setInterval(fetchAll, REFRESH_MS);
+    fetchBatch();
+    clearInterval(batchTimer.current);
+    batchTimer.current = setInterval(fetchBatch, REFRESH_MS);
+
     return () => {
       mountedRef.current = false;
-      clearInterval(timerRef.current);
+      clearInterval(moversTimer.current);
+      clearInterval(batchTimer.current);
     };
-  }, [fetchAll]);
+  }, [fetchMovers, fetchBatch]);
 
-  // ── Derived lists ─────────────────────────────────────────────────────────────
-  // `change` already contains the right value (intraday or last-session) from server
-  const broadQuotes = quotes.filter(q => BROAD_POOL.includes(q.symbol) && q.price > 0);
-  const sorted      = [...broadQuotes].sort((a, b) => b.change - a.change);
-
-  // Gainers: top 50 best performers across all caps
-  const gainers = sorted.slice(0, 50);
-  // Losers: bottom 50 worst performers across all caps
-  const losers  = [...sorted].reverse().slice(0, 50);
-
-  // Long-term picks (top 50): full blue-chip pool sorted by today's relative strength.
-  // Ranks the 50-stock quality pool by session % change so the currently strongest
-  // names bubble to the top — still a "buy and hold" list, just ordered by momentum.
+  // ── Derived: Long-term picks ─────────────────────────────────────────────
   const longTermPicks = (() => {
     const pool = quotes.filter(q => LONG_TERM_POOL.includes(q.symbol) && q.price > 0);
     if (!pool.length) return [];
-    return [...pool]
-      .sort((a, b) => b.change - a.change)
-      .slice(0, 50);
+    return [...pool].sort((a, b) => b.change - a.change).slice(0, 50);
   })();
 
-  // Live-priced custom stocks (same order as customSymbols)
+  // ── Derived: Custom stocks ───────────────────────────────────────────────
   const customStocks = customSymbols
     .map(id => quotes.find(q => q.symbol === id))
     .filter(Boolean);
 
-  // UI badge: use client-side market check (fast, no server round-trip)
+  // UI helpers
   const marketOpen = isMarketOpen();
-
-  // prevSessionDate from any quote that has one (all will have the same date)
   const prevSessionDate = !marketOpen
     ? (quotes.find(q => q.prevSessionDate)?.prevSessionDate ?? null)
     : null;
 
+  // Combined loading / error for the header spinner
+  const combinedLoading = loading || moversLoading;
+  const combinedError   = error || moversError;
+
+  const refresh = useCallback(() => {
+    setMoversLoading(true);
+    setLoading(true);
+    fetchMovers();
+    fetchBatch();
+  }, [fetchMovers, fetchBatch]);
+
   return {
     gainers, losers, longTermPicks,
     quotes, customStocks,
-    loading, error, lastRefresh,
-    marketOpen, prevSessionDate,
-    refresh: fetchAll,
+    loading: combinedLoading,
+    error:   combinedError,
+    lastRefresh, marketOpen, prevSessionDate,
+    scanned,  // number of stocks scanned by market-movers
+    refresh,
   };
 }

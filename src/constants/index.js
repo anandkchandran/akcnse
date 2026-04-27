@@ -141,6 +141,8 @@ export const SYMBOLS = [
   { label: 'ALKEM',      id: 'ALKEM',       yahoo: 'ALKEM.NS',       tv: 'NSE:ALKEM',       sector: 'Pharma',   cap: 'mid', name: 'Alkem Laboratories',             aliases: ['alkem', 'alkem labs', 'alkem pharma'] },
   { label: 'SYNGENE',    id: 'SYNGENE',     yahoo: 'SYNGENE.NS',     tv: 'NSE:SYNGENE',     sector: 'Pharma',   cap: 'mid', name: 'Syngene International',          aliases: ['syngene', 'biocon syngene'] },
   { label: 'METROPOLIS', id: 'METROPOLIS',  yahoo: 'METROPOLIS.NS',  tv: 'NSE:METROPOLIS',  sector: 'Pharma',   cap: 'mid', name: 'Metropolis Healthcare',          aliases: ['metropolis', 'metropolis labs', 'diagnostics'] },
+  { label: 'SUVENPHAR',  id: 'SUVENPHAR',   yahoo: 'SUVENPHAR.NS',   tv: 'NSE:SUVENPHAR',   sector: 'Pharma',   cap: 'mid', name: 'Suven Pharmaceuticals',          aliases: ['suven pharma', 'suvenphar', 'suven'] },
+  { label: 'INDIACEM',   id: 'INDIACEM',    yahoo: 'INDIACEM.NS',    tv: 'NSE:INDIACEM',    sector: 'Infra',    cap: 'mid', name: 'India Cements',                  aliases: ['india cements', 'indiacem', 'india cement'] },
 
   // ── Small-cap ─────────────────────────────────────────────────────────────
   { label: 'HAPPSTMNDS', id: 'HAPPSTMNDS',  yahoo: 'HAPPSTMNDS.NS',  tv: 'NSE:HAPPSTMNDS',  sector: 'IT',       cap: 'small', name: 'Happiest Minds Technologies',  aliases: ['happiest minds', 'happstmnds', 'happy minds'] },

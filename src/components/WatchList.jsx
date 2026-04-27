@@ -36,7 +36,7 @@ function StockRow({ stock, isActive, onSelect, onRemove, C }) {
 
   return (
     <div
-      onClick={() => onSelect(stock.symbol)}
+      onClick={() => onSelect(stock.symbol, stock)}
       style={{
         display:     'flex',
         alignItems:  'center',
@@ -227,9 +227,18 @@ export default function WatchList({ currentSymbol, onSelect, customIds = [], onA
   const { gainers, losers, longTermPicks, customStocks, loading, error, lastRefresh, refresh, marketOpen, prevSessionDate, scanned } =
     useNseWatchlist(customIds);
 
-  const handleSelect = (symbolId) => {
-    const sym = EQUITY_SYMBOLS.find(s => s.id === symbolId);
-    if (sym) onSelect(sym);
+  const handleSelect = (symbolId, stockData) => {
+    // Try known constants first; fall back to a synthetic object built from
+    // the live quote so any market-scanner stock is always clickable.
+    const sym = EQUITY_SYMBOLS.find(s => s.id === symbolId) || {
+      id:     symbolId,
+      label:  symbolId,
+      yahoo:  `${symbolId}.NS`,
+      tv:     `NSE:${symbolId}`,
+      sector: 'NSE',
+      name:   stockData?.name || symbolId,
+    };
+    onSelect(sym);
   };
 
   // ── Tab definitions ─────────────────────────────────────────────────────────

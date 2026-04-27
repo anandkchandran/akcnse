@@ -92,6 +92,64 @@ export const SYMBOLS = [
   { label: 'NAUKRI',     id: 'NAUKRI',      yahoo: 'NAUKRI.NS',      tv: 'NSE:NAUKRI',      sector: 'IT',       name: 'Info Edge (Naukri.com)',            aliases: ['naukri', 'info edge', 'jeevansathi', '99acres'] },
   { label: 'POLICYBZR',  id: 'POLICYBZR',   yahoo: 'POLICYBZR.NS',   tv: 'NSE:POLICYBZR',   sector: 'Finance',  name: 'PB Fintech (Policybazaar)',         aliases: ['policybazaar', 'policybzr', 'pb fintech'] },
 
+  // ── Mid-cap — FMCG & Consumer ─────────────────────────────────────────────
+  { label: 'BRITANNIA',  id: 'BRITANNIA',   yahoo: 'BRITANNIA.NS',   tv: 'NSE:BRITANNIA',   sector: 'FMCG',     cap: 'mid', name: 'Britannia Industries',           aliases: ['britannia', 'good day', 'marie gold', 'bourbon'] },
+  { label: 'COLPAL',     id: 'COLPAL',      yahoo: 'COLPAL.NS',      tv: 'NSE:COLPAL',      sector: 'FMCG',     cap: 'mid', name: 'Colgate-Palmolive India',        aliases: ['colgate', 'colpal', 'palmolive'] },
+  { label: 'DABUR',      id: 'DABUR',       yahoo: 'DABUR.NS',       tv: 'NSE:DABUR',       sector: 'FMCG',     cap: 'mid', name: 'Dabur India',                    aliases: ['dabur', 'real juice', 'vatika', 'hajmola'] },
+  { label: 'GODREJCP',   id: 'GODREJCP',    yahoo: 'GODREJCP.NS',    tv: 'NSE:GODREJCP',    sector: 'FMCG',     cap: 'mid', name: 'Godrej Consumer Products',       aliases: ['godrej consumer', 'godrej cp', 'godrej', 'hit', 'good knight'] },
+  { label: 'EMAMILTD',   id: 'EMAMILTD',    yahoo: 'EMAMILTD.NS',    tv: 'NSE:EMAMILTD',    sector: 'FMCG',     cap: 'mid', name: 'Emami',                          aliases: ['emami', 'fair and handsome', 'boro plus', 'zandu'] },
+  { label: 'ASTRAL',     id: 'ASTRAL',      yahoo: 'ASTRAL.NS',      tv: 'NSE:ASTRAL',      sector: 'Consumer', cap: 'mid', name: 'Astral (Pipes & Adhesives)',     aliases: ['astral', 'astral pipes', 'astral poly'] },
+
+  // ── Mid-cap — Auto ───────────────────────────────────────────────────────
+  { label: 'ASHOKLEY',   id: 'ASHOKLEY',    yahoo: 'ASHOKLEY.NS',    tv: 'NSE:ASHOKLEY',    sector: 'Auto',     cap: 'mid', name: 'Ashok Leyland',                  aliases: ['ashok leyland', 'leyland', 'trucks', 'dost'] },
+  { label: 'TVSMOTOR',   id: 'TVSMOTOR',    yahoo: 'TVSMOTOR.NS',    tv: 'NSE:TVSMOTOR',    sector: 'Auto',     cap: 'mid', name: 'TVS Motor Company',              aliases: ['tvs motor', 'tvs', 'apache', 'jupiter', 'ntorq'] },
+  { label: 'BALKRISIND', id: 'BALKRISIND',  yahoo: 'BALKRISIND.NS',  tv: 'NSE:BALKRISIND',  sector: 'Auto',     cap: 'mid', name: 'Balkrishna Industries (BKT)',    aliases: ['balkrishna', 'bkt', 'bkt tyres', 'off highway tyres'] },
+
+  // ── Mid-cap — Real Estate ─────────────────────────────────────────────────
+  { label: 'DLF',        id: 'DLF',         yahoo: 'DLF.NS',         tv: 'NSE:DLF',         sector: 'Infra',    cap: 'mid', name: 'DLF Limited',                    aliases: ['dlf', 'dlf realty', 'real estate'] },
+  { label: 'GODREJPROP', id: 'GODREJPROP',  yahoo: 'GODREJPROP.NS',  tv: 'NSE:GODREJPROP',  sector: 'Infra',    cap: 'mid', name: 'Godrej Properties',              aliases: ['godrej properties', 'godrej prop'] },
+  { label: 'OBEROIRLTY', id: 'OBEROIRLTY',  yahoo: 'OBEROIRLTY.NS',  tv: 'NSE:OBEROIRLTY',  sector: 'Infra',    cap: 'mid', name: 'Oberoi Realty',                  aliases: ['oberoi realty', 'oberoi'] },
+  { label: 'LODHA',      id: 'LODHA',       yahoo: 'LODHA.NS',       tv: 'NSE:LODHA',       sector: 'Infra',    cap: 'mid', name: 'Macrotech Developers (Lodha)',   aliases: ['lodha', 'macrotech', 'lodha developers'] },
+
+  // ── Mid-cap — Cement ─────────────────────────────────────────────────────
+  { label: 'SHREECEM',   id: 'SHREECEM',    yahoo: 'SHREECEM.NS',    tv: 'NSE:SHREECEM',    sector: 'Infra',    cap: 'mid', name: 'Shree Cement',                   aliases: ['shree cement', 'shreecem'] },
+  { label: 'ACC',        id: 'ACC',         yahoo: 'ACC.NS',         tv: 'NSE:ACC',         sector: 'Infra',    cap: 'mid', name: 'ACC Limited',                    aliases: ['acc', 'acc cement'] },
+  { label: 'AMBUJACEM',  id: 'AMBUJACEM',   yahoo: 'AMBUJACEM.NS',   tv: 'NSE:AMBUJACEM',   sector: 'Infra',    cap: 'mid', name: 'Ambuja Cements',                 aliases: ['ambuja', 'ambuja cement', 'ambujacem'] },
+
+  // ── Mid-cap — Chemicals & Wires ──────────────────────────────────────────
+  { label: 'DEEPAKNTR',  id: 'DEEPAKNTR',   yahoo: 'DEEPAKNTR.NS',   tv: 'NSE:DEEPAKNTR',   sector: 'Infra',    cap: 'mid', name: 'Deepak Nitrite',                 aliases: ['deepak nitrite', 'deepak'] },
+  { label: 'POLYCAB',    id: 'POLYCAB',     yahoo: 'POLYCAB.NS',     tv: 'NSE:POLYCAB',     sector: 'Infra',    cap: 'mid', name: 'Polycab India (Wires & Cables)', aliases: ['polycab', 'polycab wires', 'cables'] },
+  { label: 'CUMMINSIND', id: 'CUMMINSIND',  yahoo: 'CUMMINSIND.NS',  tv: 'NSE:CUMMINSIND',  sector: 'Infra',    cap: 'mid', name: 'Cummins India',                  aliases: ['cummins', 'cummins india', 'generators'] },
+  { label: 'BHEL',       id: 'BHEL',        yahoo: 'BHEL.NS',        tv: 'NSE:BHEL',        sector: 'Infra',    cap: 'mid', name: 'Bharat Heavy Electricals',       aliases: ['bhel', 'bharat heavy', 'heavy electricals'] },
+
+  // ── Mid-cap — Energy / PSU ────────────────────────────────────────────────
+  { label: 'GAIL',       id: 'GAIL',        yahoo: 'GAIL.NS',        tv: 'NSE:GAIL',        sector: 'Energy',   cap: 'mid', name: 'GAIL India',                     aliases: ['gail', 'gail india', 'gas authority'] },
+  { label: 'IOC',        id: 'IOC',         yahoo: 'IOC.NS',         tv: 'NSE:IOC',         sector: 'Energy',   cap: 'mid', name: 'Indian Oil Corporation',         aliases: ['ioc', 'indian oil', 'iocl'] },
+  { label: 'HPCL',       id: 'HPCL',        yahoo: 'HPCL.NS',        tv: 'NSE:HPCL',        sector: 'Energy',   cap: 'mid', name: 'Hindustan Petroleum',            aliases: ['hpcl', 'hindustan petroleum', 'hp petroleum'] },
+
+  // ── Mid-cap — IT & Tech ───────────────────────────────────────────────────
+  { label: 'LTTS',       id: 'LTTS',        yahoo: 'LTTS.NS',        tv: 'NSE:LTTS',        sector: 'IT',       cap: 'mid', name: 'L&T Technology Services',        aliases: ['ltts', 'l&t technology', 'lt technology'] },
+  { label: 'KPITTECH',   id: 'KPITTECH',    yahoo: 'KPITTECH.NS',    tv: 'NSE:KPITTECH',    sector: 'IT',       cap: 'mid', name: 'KPIT Technologies',              aliases: ['kpit', 'kpit tech', 'kpit technologies', 'ev software'] },
+  { label: 'TATATECH',   id: 'TATATECH',    yahoo: 'TATATECH.NS',    tv: 'NSE:TATATECH',    sector: 'IT',       cap: 'mid', name: 'Tata Technologies',              aliases: ['tata tech', 'tata technologies'] },
+
+  // ── Mid-cap — Banking / Finance ───────────────────────────────────────────
+  { label: 'UNIONBANK',  id: 'UNIONBANK',   yahoo: 'UNIONBANK.NS',   tv: 'NSE:UNIONBANK',   sector: 'Banking',  cap: 'mid', name: 'Union Bank of India',            aliases: ['union bank', 'union bank of india'] },
+  { label: 'CAMS',       id: 'CAMS',        yahoo: 'CAMS.NS',        tv: 'NSE:CAMS',        sector: 'Finance',  cap: 'mid', name: 'Computer Age Management (CAMS)', aliases: ['cams', 'computer age management', 'mutual fund registrar'] },
+  { label: 'KFINTECH',   id: 'KFINTECH',    yahoo: 'KFINTECH.NS',    tv: 'NSE:KFINTECH',    sector: 'Finance',  cap: 'mid', name: 'KFin Technologies',              aliases: ['kfintech', 'kfin', 'mutual fund registrar'] },
+
+  // ── Mid-cap — Pharma & Healthcare ────────────────────────────────────────
+  { label: 'ALKEM',      id: 'ALKEM',       yahoo: 'ALKEM.NS',       tv: 'NSE:ALKEM',       sector: 'Pharma',   cap: 'mid', name: 'Alkem Laboratories',             aliases: ['alkem', 'alkem labs', 'alkem pharma'] },
+  { label: 'SYNGENE',    id: 'SYNGENE',     yahoo: 'SYNGENE.NS',     tv: 'NSE:SYNGENE',     sector: 'Pharma',   cap: 'mid', name: 'Syngene International',          aliases: ['syngene', 'biocon syngene'] },
+  { label: 'METROPOLIS', id: 'METROPOLIS',  yahoo: 'METROPOLIS.NS',  tv: 'NSE:METROPOLIS',  sector: 'Pharma',   cap: 'mid', name: 'Metropolis Healthcare',          aliases: ['metropolis', 'metropolis labs', 'diagnostics'] },
+
+  // ── Small-cap ─────────────────────────────────────────────────────────────
+  { label: 'HAPPSTMNDS', id: 'HAPPSTMNDS',  yahoo: 'HAPPSTMNDS.NS',  tv: 'NSE:HAPPSTMNDS',  sector: 'IT',       cap: 'small', name: 'Happiest Minds Technologies',  aliases: ['happiest minds', 'happstmnds', 'happy minds'] },
+  { label: 'LATENTVIEW', id: 'LATENTVIEW',  yahoo: 'LATENTVIEW.NS',  tv: 'NSE:LATENTVIEW',  sector: 'IT',       cap: 'small', name: 'LatentView Analytics',         aliases: ['latentview', 'latent view', 'analytics'] },
+  { label: 'TANLA',      id: 'TANLA',       yahoo: 'TANLA.NS',       tv: 'NSE:TANLA',       sector: 'IT',       cap: 'small', name: 'Tanla Platforms',              aliases: ['tanla', 'tanla platforms', 'cpaas', 'trubloq'] },
+  { label: 'RAILTEL',    id: 'RAILTEL',     yahoo: 'RAILTEL.NS',     tv: 'NSE:RAILTEL',     sector: 'Infra',    cap: 'small', name: 'RailTel Corporation',          aliases: ['railtel', 'rail tel', 'railway telecom'] },
+  { label: 'AAVAS',      id: 'AAVAS',       yahoo: 'AAVAS.NS',       tv: 'NSE:AAVAS',       sector: 'Finance',  cap: 'small', name: 'AAVAS Financiers',             aliases: ['aavas', 'aavas financiers', 'housing finance'] },
+  { label: 'DELHIVERY',  id: 'DELHIVERY',   yahoo: 'DELHIVERY.NS',   tv: 'NSE:DELHIVERY',   sector: 'Consumer', cap: 'small', name: 'Delhivery (Logistics)',        aliases: ['delhivery', 'delivery', 'logistics'] },
+
   // ── IT / Tech ─────────────────────────────────────────────────────────────
   { label: 'LTIM',        id: 'LTIM',        yahoo: 'LTIM.NS',        tv: 'NSE:LTIM',        sector: 'IT',       name: 'LTIMindtree',                    aliases: ['ltimindtree', 'mindtree', 'ltim', 'l&t infotech'] },
   { label: 'MPHASIS',     id: 'MPHASIS',     yahoo: 'MPHASIS.NS',     tv: 'NSE:MPHASIS',     sector: 'IT',       name: 'Mphasis',                        aliases: ['mphasis'] },

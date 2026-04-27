@@ -4,10 +4,35 @@ import { useNseWatchlist } from '../hooks/useNseWatchlist';
 import { EQUITY_SYMBOLS } from '../constants';
 import { fmtPrice, fmtVolume } from '../utils/format';
 
+// ── Cap badge helper ─────────────────────────────────────────────────────────
+function CapBadge({ cap }) {
+  if (!cap || cap === 'large') return null;
+  const isMid = cap === 'mid';
+  return (
+    <span style={{
+      fontFamily:    "'Raleway', sans-serif",
+      fontSize:       7,
+      fontWeight:     800,
+      color:          isMid ? '#f59e0b' : '#f97316',
+      background:     isMid ? '#f59e0b18' : '#f9731618',
+      border:        `1px solid ${isMid ? '#f59e0b40' : '#f9731640'}`,
+      borderRadius:   3,
+      padding:       '1px 4px',
+      letterSpacing:  0.5,
+      flexShrink:     0,
+      alignSelf:     'center',
+    }}>
+      {isMid ? 'MID' : 'SML'}
+    </span>
+  );
+}
+
 // ── Individual stock row ──────────────────────────────────────────────────────
 function StockRow({ stock, isActive, onSelect, onRemove, C }) {
   const isGainer = stock.change >= 0;
   const clr      = isGainer ? C.bull : C.bear;
+  const meta     = EQUITY_SYMBOLS.find(s => s.id === stock.symbol);
+  const cap      = meta?.cap;
 
   return (
     <div
@@ -30,18 +55,21 @@ function StockRow({ stock, isActive, onSelect, onRemove, C }) {
       {/* Left: symbol + price */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
-          <span style={{
-            fontFamily:   "'Raleway', sans-serif",
-            fontSize:      11,
-            fontWeight:    800,
-            color:         isActive ? clr : C.bright,
-            letterSpacing: 0.2,
-            overflow:      'hidden',
-            textOverflow:  'ellipsis',
-            whiteSpace:    'nowrap',
-          }}>
-            {stock.symbol}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
+            <span style={{
+              fontFamily:   "'Raleway', sans-serif",
+              fontSize:      11,
+              fontWeight:    800,
+              color:         isActive ? clr : C.bright,
+              letterSpacing: 0.2,
+              overflow:      'hidden',
+              textOverflow:  'ellipsis',
+              whiteSpace:    'nowrap',
+            }}>
+              {stock.symbol}
+            </span>
+            <CapBadge cap={cap} />
+          </div>
           <span style={{ fontFamily: "'Roboto Mono', monospace", fontSize: 11, fontWeight: 700, color: clr, flexShrink: 0, marginLeft: 4 }}>
             {stock.change >= 0 ? '+' : ''}{stock.change.toFixed(2)}%
           </span>
@@ -318,13 +346,13 @@ export default function WatchList({ currentSymbol, onSelect, customIds = [], onA
         }}>
           {tab === 'buy' && (
             marketOpen
-              ? 'Top 50 long-term blue-chip picks · ranked by session strength'
-              : `Top 50 blue-chip quality picks${prevSessionDate ? ` · last session (${prevSessionDate})` : ''}`
+              ? 'Top picks · large, mid & small-cap · ranked by session strength'
+              : `Top picks · large, mid & small-cap${prevSessionDate ? ` · last session (${prevSessionDate})` : ''}`
           )}
           {(tab === 'gainers' || tab === 'losers') && (
             marketOpen
-              ? 'Ranked by hourly change · NSE live'
-              : `Ranked by last session change${prevSessionDate ? ` · ${prevSessionDate}` : ''} · market closed`
+              ? 'All caps · ranked by hourly change · NSE live'
+              : `All caps · last session change${prevSessionDate ? ` · ${prevSessionDate}` : ''} · market closed`
           )}
         </div>
       )}

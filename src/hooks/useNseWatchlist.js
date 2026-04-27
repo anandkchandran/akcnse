@@ -4,8 +4,10 @@ import { isMarketOpen } from '../constants';
 import { API_BASE } from '../utils/api.js';
 const REFRESH_MS = 120_000; // 2 minutes
 
-// Broad pool for gainers / losers / short-term scoring (Nifty 50 + Nifty Next 50 highlights)
-const NIFTY50 = [
+// ── Cap-segmented pools ───────────────────────────────────────────────────────
+
+// Large-cap: Nifty 50 universe
+const LARGE_CAP_POOL = [
   'RELIANCE',   'TCS',        'INFY',       'HDFCBANK',   'ICICIBANK',
   'HINDUNILVR', 'WIPRO',      'BAJFINANCE', 'SBIN',       'AXISBANK',
   'LT',         'KOTAKBANK',  'ITC',        'TITAN',      'SUNPHARMA',
@@ -18,27 +20,58 @@ const NIFTY50 = [
   'INDUSINDBK', 'HDFCLIFE',   'SBILIFE',    'BANKBARODA', 'PNB',
 ];
 
-// Curated long-term blue-chip pool — 50 quality large-cap NSE stocks
-// Quality > momentum; diversified across sectors
+// Mid-cap: quality names across sectors
+const MID_CAP_POOL = [
+  // FMCG
+  'BRITANNIA', 'COLPAL',    'DABUR',      'GODREJCP',   'EMAMILTD',  'ASTRAL',
+  // Auto
+  'ASHOKLEY',  'TVSMOTOR',  'BALKRISIND',
+  // Infra / Real-estate / Cement
+  'DLF',       'GODREJPROP','OBEROIRLTY', 'LODHA',
+  'SHREECEM',  'ACC',       'AMBUJACEM',
+  // Industrials / Chemicals
+  'DEEPAKNTR', 'POLYCAB',   'CUMMINSIND', 'BHEL',
+  // Energy
+  'GAIL',      'IOC',       'HPCL',
+  // IT
+  'LTTS',      'KPITTECH',  'TATATECH',
+  // Banking / Finance
+  'UNIONBANK', 'CAMS',      'KFINTECH',
+  // Pharma
+  'ALKEM',     'SYNGENE',   'METROPOLIS',
+];
+
+// Small-cap: high-growth / emerging names
+const SMALL_CAP_POOL = [
+  'HAPPSTMNDS', 'LATENTVIEW', 'TANLA',
+  'RAILTEL',    'AAVAS',      'DELHIVERY',
+];
+
+// Broad pool for gainers / losers (all caps)
+const BROAD_POOL = [...LARGE_CAP_POOL, ...MID_CAP_POOL, ...SMALL_CAP_POOL];
+
+// Curated long-term pool — blue-chips + select quality mid/small-caps
 const LONG_TERM_POOL = [
-  // Banking & Finance
+  // Large-cap: Banking & Finance
   'HDFCBANK',  'ICICIBANK',  'KOTAKBANK',  'AXISBANK',   'SBIN',
   'INDUSINDBK','BAJFINANCE', 'BAJAJFINSV', 'HDFCLIFE',   'SBILIFE',
-  // IT & Tech
+  // Large-cap: IT & Tech
   'TCS',       'INFY',       'HCLTECH',    'WIPRO',      'TECHM',
-  // Consumer & FMCG
-  'HINDUNILVR','ITC',        'NESTLEIND',  'TATACONSUM', 'BRITANNIA',
-  'ASIANPAINT','TITAN',      'DMART',      'PIDILITIND', 'ZOMATO',
-  // Pharma & Healthcare
+  // Large-cap: Consumer & FMCG
+  'HINDUNILVR','ITC',        'NESTLEIND',  'TATACONSUM', 'ASIANPAINT',
+  'TITAN',     'DMART',      'PIDILITIND', 'ZOMATO',
+  // Large-cap: Pharma
   'SUNPHARMA', 'DRREDDY',    'DIVISLAB',   'CIPLA',      'APOLLOHOSP',
-  // Auto & Mobility
+  // Large-cap: Auto
   'MARUTI',    'BAJAJ-AUTO', 'HEROMOTOCO', 'EICHERMOT',  'M&M',
-  // Energy & Utilities
-  'RELIANCE',  'ONGC',       'BPCL',       'NTPC',       'POWERGRID',
-  // Infrastructure & Industrials
-  'LT',        'ADANIPORTS', 'ULTRACEMCO', 'BHARTIARTL', 'INDIGO',
-  // Diversified Conglomerates / Metals
-  'TATAMOTORS','TATASTEEL',  'JSWSTEEL',   'HINDALCO',   'COALINDIA',
+  // Large-cap: Energy & Infra
+  'RELIANCE',  'ONGC',       'NTPC',       'POWERGRID',  'LT',
+  'BHARTIARTL','INDIGO',
+  // Select mid-caps with strong fundamentals
+  'BRITANNIA', 'COLPAL',    'TVSMOTOR',   'POLYCAB',
+  'LTTS',      'KPITTECH',  'CAMS',       'ALKEM',
+  // Select small-caps (high-conviction)
+  'HAPPSTMNDS','LATENTVIEW',
 ];
 
 /**
@@ -65,7 +98,7 @@ export function useNseWatchlist(customSymbols = []) {
   const customKey = [...new Set(customSymbols)].sort().join(',');
 
   const fetchAll = useCallback(async () => {
-    const all = [...new Set([...NIFTY50, ...LONG_TERM_POOL, ...customSymbols])];
+    const all = [...new Set([...BROAD_POOL, ...LONG_TERM_POOL, ...customSymbols])];
     try {
       const res = await fetch(`${API_BASE}/api/nse/batch`, {
         method:  'POST',
@@ -101,12 +134,12 @@ export function useNseWatchlist(customSymbols = []) {
 
   // ── Derived lists ─────────────────────────────────────────────────────────────
   // `change` already contains the right value (intraday or last-session) from server
-  const niftyQuotes = quotes.filter(q => NIFTY50.includes(q.symbol));
-  const sorted      = [...niftyQuotes].sort((a, b) => b.change - a.change);
+  const broadQuotes = quotes.filter(q => BROAD_POOL.includes(q.symbol) && q.price > 0);
+  const sorted      = [...broadQuotes].sort((a, b) => b.change - a.change);
 
-  // Gainers: top 15 best performers
+  // Gainers: top 15 best performers across all caps
   const gainers = sorted.slice(0, 15);
-  // Losers: bottom 15 worst performers
+  // Losers: bottom 15 worst performers across all caps
   const losers  = [...sorted].reverse().slice(0, 15);
 
   // Long-term picks (top 50): full blue-chip pool sorted by today's relative strength.

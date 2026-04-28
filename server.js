@@ -309,6 +309,7 @@ const _moversCache = { data: null, fetchedAt: 0 };
 
 // Single daily-change quote via proven v8/chart endpoint (interval=1d, range=5d).
 // Uses the same infrastructure as the chart viewer — no crumb/session required.
+// Also computes avgVolume from prior sessions for momentum/volume scoring.
 async function fetchDailyQuote(symbol) {
   const ticker = symbol.endsWith('.NS') ? symbol : `${symbol}.NS`;
   try {
@@ -320,10 +321,12 @@ async function fetchDailyQuote(symbol) {
     const qdata = result.indicators?.quote?.[0] || {};
     const tss   = result.timestamp || [];
 
+    // Build per-day candles with both close and volume
     const candles = tss
       .map((ts, i) => ({
-        date:  new Date(ts * 1000).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }),
-        close: qdata.close?.[i],
+        date:   new Date(ts * 1000).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }),
+        close:  qdata.close?.[i],
+        volume: qdata.volume?.[i] ?? 0,
       }))
       .filter(c => c.close != null && c.close > 0);
 
@@ -336,13 +339,23 @@ async function fetchDailyQuote(symbol) {
       if (lc && pc) change = ((lc - pc) / pc) * 100;
     }
 
+    // Average volume of the previous sessions (excludes today) for vol-surge ratio
+    const todayVol  = meta.regularMarketVolume || 0;
+    const prevVols  = dates.slice(0, -1)                          // all days except last
+      .map(d => candles.filter(c => c.date === d).reduce((s, c) => s + c.volume, 0))
+      .filter(v => v > 0);
+    const avgVolume = prevVols.length
+      ? prevVols.reduce((s, v) => s + v, 0) / prevVols.length
+      : todayVol;   // fallback: no history → ratio will be 1
+
     if (!(meta.regularMarketPrice > 0)) return null;
     return {
       symbol,
-      price:  meta.regularMarketPrice  || 0,
+      price:     meta.regularMarketPrice  || 0,
       change,
-      volume: meta.regularMarketVolume || 0,
-      name:   meta.longName || meta.shortName || symbol,
+      volume:    todayVol,
+      avgVolume,
+      name:      meta.longName || meta.shortName || symbol,
     };
   } catch { return null; }
 }
@@ -383,10 +396,35 @@ async function fetchMarketMovers() {
     throw new Error(`Market scanner returned no data from Yahoo Finance (${symbols.length} symbols tried)`);
   }
 
-  const sorted = [...allQuotes].sort((a, b) => b.change - a.change);
+  const filtered = allQuotes.filter(q => q.price >= 50 && q.volume > 0);
+  const sorted = [...filtered].sort((a, b) => b.change - a.change);
+
+  // ── Dynamic Top Picks: Momentum + Volume Confirmation ───────────────────────
+  // Only stocks where BOTH price momentum AND volume are elevated.
+  // volRatio = today's volume ÷ avg of prior sessions.
+  // Composite score = % change × min(volRatio, 4) — volume-backed moves rank higher,
+  //   but the cap at 4× prevents a freak volume spike from dominating.
+  const topPicks = allQuotes
+    .filter(q =>
+      q.change    >   0.8  &&   // meaningful upward move (>0.8%)
+      q.change    <=  18   &&   // not at circuit-breaker risk
+      q.price     >=  50   &&   // no penny stocks
+      q.volume    >   0    &&   // actually traded today
+      q.avgVolume >   0    &&   // need history to compute ratio
+      (q.volume / q.avgVolume) >= 1.2  // volume at least 20% above its recent average
+    )
+    .map(q => ({
+      ...q,
+      volRatio: q.volume / q.avgVolume,
+      score:    q.change * Math.min(q.volume / q.avgVolume, 4),
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 100);
+
   const data = {
     gainers:   sorted.slice(0, 50),
     losers:    [...sorted].reverse().slice(0, 50),
+    topPicks,
     scanned:   allQuotes.length,
     fetchedAt: now,
     marketOpen: isNseOpen(),

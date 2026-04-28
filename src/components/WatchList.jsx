@@ -355,8 +355,8 @@ export default function WatchList({ currentSymbol, onSelect, customIds = [], onA
         }}>
           {tab === 'buy' && (
             marketOpen
-              ? 'Top picks · large, mid & small-cap · ranked by session strength'
-              : `Top picks · large, mid & small-cap${prevSessionDate ? ` · last session (${prevSessionDate})` : ''}`
+              ? `Momentum + volume · ${listMap['buy']?.length || 0} picks from ${scanned || '~320'} scanned · price >0.8% & vol ≥1.2×avg`
+              : `Momentum + volume · ${listMap['buy']?.length || 0} picks from ${scanned || '~320'} scanned · prev session`
           )}
           {(tab === 'gainers' || tab === 'losers') && (
             marketOpen

@@ -2,66 +2,41 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { isMarketOpen } from '../constants';
 import { API_BASE } from '../utils/api.js';
 
-const REFRESH_MS       = 120_000; // 2 minutes
-const MOVERS_REFRESH_MS = 90_000; // 90 seconds — slightly faster than batch
-
-// ── Top Picks pool (long-term quality, all caps) ──────────────────────────────
-// Used only for the "Top Picks" tab; gainers/losers come from server-side scan.
-const LONG_TERM_POOL = [
-  // Large-cap: Banking & Finance
-  'HDFCBANK',  'ICICIBANK',  'KOTAKBANK',  'AXISBANK',   'SBIN',
-  'INDUSINDBK','BAJFINANCE', 'BAJAJFINSV', 'HDFCLIFE',   'SBILIFE',
-  // Large-cap: IT & Tech
-  'TCS',       'INFY',       'HCLTECH',    'WIPRO',      'TECHM',
-  // Large-cap: Consumer & FMCG
-  'HINDUNILVR','ITC',        'NESTLEIND',  'TATACONSUM', 'ASIANPAINT',
-  'TITAN',     'DMART',      'PIDILITIND', 'ZOMATO',
-  // Large-cap: Pharma
-  'SUNPHARMA', 'DRREDDY',    'DIVISLAB',   'CIPLA',      'APOLLOHOSP',
-  // Large-cap: Auto
-  'MARUTI',    'BAJAJ-AUTO', 'HEROMOTOCO', 'EICHERMOT',  'M&M',
-  // Large-cap: Energy & Infra
-  'RELIANCE',  'ONGC',       'NTPC',       'POWERGRID',  'LT',
-  'BHARTIARTL','INDIGO',
-  // Select mid-caps with strong fundamentals
-  'BRITANNIA', 'COLPAL',    'TVSMOTOR',   'POLYCAB',
-  'LTTS',      'KPITTECH',  'CAMS',       'ALKEM',
-  // Select small-caps (high-conviction)
-  'HAPPSTMNDS','LATENTVIEW',
-];
+const REFRESH_MS        = 120_000; // 2 minutes — custom watchlist
+const MOVERS_REFRESH_MS =  90_000; // 90 seconds — market-wide scan (also feeds Top Picks)
 
 /**
  * useNseWatchlist
  *
- * - gainers / losers  : from GET /api/nse/market-movers
- *     Server scans ~450 NSE symbols, sorts, caches 2 min.
- *     No pre-defined pool needed — any stock can appear.
+ * - gainers / losers / topPicks  : from GET /api/nse/market-movers
+ *     Server scans ~320 NSE symbols, applies quality filters, caches 2 min.
+ *     topPicks = stocks with 0.3–15 % gain, price ≥ ₹50, has volume.
  *
- * - longTermPicks      : from POST /api/nse/batch (LONG_TERM_POOL)
- *     Curated quality picks, ranked by session strength.
- *
- * - customStocks       : from same batch call as longTermPicks.
+ * - customStocks                 : from POST /api/nse/batch (only when customIds present)
  */
 export function useNseWatchlist(customSymbols = []) {
-  // ── Market movers state ──────────────────────────────────────────────────
-  const [gainers,    setGainers]    = useState([]);
-  const [losers,     setLosers]     = useState([]);
+  // ── Market movers + top picks state ─────────────────────────────────────
+  const [gainers,       setGainers]       = useState([]);
+  const [losers,        setLosers]        = useState([]);
+  const [topPicks,      setTopPicks]      = useState([]);
   const [moversLoading, setMoversLoading] = useState(true);
   const [moversError,   setMoversError]   = useState(null);
-  const [scanned,    setScanned]    = useState(0);
+  const [scanned,       setScanned]       = useState(0);
+  const [lastRefresh,   setLastRefresh]   = useState(null);
+  const [marketOpen,    setMarketOpen]    = useState(isMarketOpen());
+  const [prevSessionDate, setPrevSessionDate] = useState(null);
 
-  // ── Batch (Top Picks + custom) state ────────────────────────────────────
-  const [quotes,     setQuotes]     = useState([]);
-  const [loading,    setLoading]    = useState(true);
-  const [error,      setError]      = useState(null);
-  const [lastRefresh,setLastRefresh]= useState(null);
+  // ── Custom watchlist state ───────────────────────────────────────────────
+  const [customQuotes,  setCustomQuotes]  = useState([]);
+  const [customLoading, setCustomLoading] = useState(false);
+  const [customError,   setCustomError]   = useState(null);
 
-  const mountedRef  = useRef(true);
-  const moversTimer = useRef(null);
-  const batchTimer  = useRef(null);
-  const customKey   = [...new Set(customSymbols)].sort().join(',');
+  const mountedRef    = useRef(true);
+  const moversTimer   = useRef(null);
+  const customTimer   = useRef(null);
+  const customKey     = [...new Set(customSymbols)].sort().join(',');
 
-  // ── Fetch market-wide gainers / losers ───────────────────────────────────
+  // ── Fetch market-wide scan (gainers, losers, topPicks) ──────────────────
   const fetchMovers = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/api/nse/market-movers`);
@@ -69,11 +44,18 @@ export function useNseWatchlist(customSymbols = []) {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       if (!mountedRef.current) return;
-      setGainers(data.gainers || []);
-      setLosers(data.losers  || []);
-      setScanned(data.scanned || 0);
+      setGainers(data.gainers   || []);
+      setLosers(data.losers     || []);
+      setTopPicks(data.topPicks || []);
+      setScanned(data.scanned   || 0);
+      setMarketOpen(!!data.marketOpen);
       setMoversLoading(false);
       setMoversError(null);
+      setLastRefresh(new Date());
+
+      // Extract prevSessionDate from first quote's name fallback — not available
+      // here, but keep the field for WatchList compat (it checks prevSessionDate).
+      setPrevSessionDate(null);
     } catch (err) {
       if (!mountedRef.current) return;
       setMoversError(err.message);
@@ -81,27 +63,28 @@ export function useNseWatchlist(customSymbols = []) {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Fetch Top Picks + custom symbols ────────────────────────────────────
-  const fetchBatch = useCallback(async () => {
-    const all = [...new Set([...LONG_TERM_POOL, ...customSymbols])];
+  // ── Fetch custom watchlist symbols ──────────────────────────────────────
+  const fetchCustom = useCallback(async () => {
+    const ids = [...new Set(customSymbols)];
+    if (!ids.length) { setCustomQuotes([]); return; }
+    setCustomLoading(true);
     try {
       const res = await fetch(`${API_BASE}/api/nse/batch`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ symbols: all }),
+        body:    JSON.stringify({ symbols: ids }),
       });
       if (!res.ok) throw new Error(`Server error ${res.status}`);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       if (!mountedRef.current) return;
-      setQuotes(data);
-      setLastRefresh(new Date());
-      setLoading(false);
-      setError(null);
+      setCustomQuotes(data);
+      setCustomLoading(false);
+      setCustomError(null);
     } catch (err) {
       if (!mountedRef.current) return;
-      setError(err.message);
-      setLoading(false);
+      setCustomError(err.message);
+      setCustomLoading(false);
     }
   }, [customKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -109,61 +92,50 @@ export function useNseWatchlist(customSymbols = []) {
   useEffect(() => {
     mountedRef.current = true;
 
-    // Market movers — fire immediately, then every 90s
+    // Market movers + top picks — fire immediately, then every 90s
     setMoversLoading(true);
     fetchMovers();
     clearInterval(moversTimer.current);
     moversTimer.current = setInterval(fetchMovers, MOVERS_REFRESH_MS);
 
-    // Batch (top picks + custom) — fire immediately, then every 2min
-    setLoading(true);
-    fetchBatch();
-    clearInterval(batchTimer.current);
-    batchTimer.current = setInterval(fetchBatch, REFRESH_MS);
+    // Custom watchlist — fire immediately if any, then every 2 min
+    fetchCustom();
+    clearInterval(customTimer.current);
+    customTimer.current = setInterval(fetchCustom, REFRESH_MS);
 
     return () => {
       mountedRef.current = false;
       clearInterval(moversTimer.current);
-      clearInterval(batchTimer.current);
+      clearInterval(customTimer.current);
     };
-  }, [fetchMovers, fetchBatch]);
+  }, [fetchMovers, fetchCustom]);
 
-  // ── Derived: Long-term picks ─────────────────────────────────────────────
-  const longTermPicks = (() => {
-    const pool = quotes.filter(q => LONG_TERM_POOL.includes(q.symbol) && q.price > 0);
-    if (!pool.length) return [];
-    return [...pool].sort((a, b) => b.change - a.change).slice(0, 50);
-  })();
-
-  // ── Derived: Custom stocks ───────────────────────────────────────────────
+  // ── Derived: custom stocks in order ─────────────────────────────────────
   const customStocks = customSymbols
-    .map(id => quotes.find(q => q.symbol === id))
+    .map(id => customQuotes.find(q => q.symbol === id))
     .filter(Boolean);
 
-  // UI helpers
-  const marketOpen = isMarketOpen();
-  const prevSessionDate = !marketOpen
-    ? (quotes.find(q => q.prevSessionDate)?.prevSessionDate ?? null)
-    : null;
-
-  // Combined loading / error for the header spinner
-  const combinedLoading = loading || moversLoading;
-  const combinedError   = error || moversError;
+  const loading = moversLoading || (customSymbols.length > 0 && customLoading);
+  const error   = moversError   || customError;
 
   const refresh = useCallback(() => {
     setMoversLoading(true);
-    setLoading(true);
     fetchMovers();
-    fetchBatch();
-  }, [fetchMovers, fetchBatch]);
+    fetchCustom();
+  }, [fetchMovers, fetchCustom]);
 
   return {
-    gainers, losers, longTermPicks,
-    quotes, customStocks,
-    loading: combinedLoading,
-    error:   combinedError,
-    lastRefresh, marketOpen, prevSessionDate,
-    scanned,  // number of stocks scanned by market-movers
+    gainers, losers,
+    longTermPicks: topPicks,  // alias: WatchList still reads longTermPicks
+    topPicks,
+    customStocks,
+    quotes:        customQuotes,
+    loading,
+    error,
+    lastRefresh,
+    marketOpen,
+    prevSessionDate,
+    scanned,
     refresh,
   };
 }
